@@ -36,7 +36,20 @@ The UI validates relationship endpoints and dependency cycles, flow topology, an
 3. Run graph preflight, review any conflict or drift diagnostics, and reconcile the graph draft.
 4. Archive the OpenSpec change. If archive happened first, the pending-drafts view finds the graph under `changes/archive/` and offers preflight and reconciliation there.
 
-The repository-local skills `opsx-chart-graph-to-spec`, `opsx-chart-spec-to-graph`, and `opsx-chart-reconcile` guide assistant work through these steps. They use the same CLI operations as the UI; they do not make generated behavior authoritative without review.
+## One workflow from OPSX Chart skills
+
+Invoke the Chart skill for the OpenSpec phase you want. Each skill uses the same OpenSpec change ID and planning artifacts; graph work is included in that change's tasks rather than tracked separately.
+
+| Phase | Chart skill | Outcome |
+| --- | --- | --- |
+| Explore | `$opsx-chart-explore` | Read specs and graphs together without edits |
+| Propose | `$opsx-chart-propose` | One proposal, spec delta, design, and task list |
+| Revise plan | `$opsx-chart-update` | Keep that change's scenario and graph tasks aligned |
+| Implement | `$opsx-chart-apply` | Complete code, spec, and graph tasks together |
+| Sync | `$opsx-chart-sync` | Update canonical specs and promote graph drafts |
+| Archive | `$opsx-chart-archive` | Finalize after paired validation |
+
+The focused `opsx-chart-graph-to-spec` and `opsx-chart-spec-to-graph` skills help with a single linked scenario during implementation. `opsx-chart-reconcile` handles graph conflicts and drafts found after archive. OpenSpec Markdown remains the behavior contract; a graph is not an independent second specification.
 
 ## CLI
 

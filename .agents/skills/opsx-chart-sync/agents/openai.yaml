@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Sync"
+  short_description: "Sync canonical specs and promote graph drafts"

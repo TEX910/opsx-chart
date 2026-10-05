@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Explore"
+  short_description: "Explore specs and graphs in one OpenSpec change"
