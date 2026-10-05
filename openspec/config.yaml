@@ -1,0 +1,8 @@
+schema: spec-driven
+
+context: |
+  This repository builds opsx-chart, a local visual companion for OpenSpec.
+  OpenSpec Markdown specifications remain the normative behavioral contract.
+  Versioned graph files represent capability relationships and behavioral flow topology.
+  The first release is a local web application for one OpenSpec project at a time.
+  Behavioral edits are planned through OpenSpec changes; layout-only edits do not alter requirements.

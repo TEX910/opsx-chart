@@ -1,0 +1,107 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { emptyFlow, validateFlow, type Relations } from '../src/shared/model.js';
+import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
+import { graphPath, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, saveRelations } from '../src/server/graph-store.js';
+
+const fixture = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
+let root: string;
+
+beforeEach(async () => {
+  root = await fs.mkdtemp(path.join(os.tmpdir(), 'opsx-chart-test-'));
+  await fs.cp(fixture, root, { recursive: true });
+});
+afterEach(async () => { await fs.rm(root, { recursive: true, force: true }); });
+
+describe('OpenSpec project and graph coordination', () => {
+  it('reads current and proposed specs without writing graph files', async () => {
+    const snapshot = await projectSnapshot(root);
+    expect(snapshot.current.map((item) => item.id)).toEqual(['authentication', 'notifications']);
+    expect(snapshot.proposed[0].requirements[0].scenarios.some((item) => item.name === 'Locked account')).toBe(true);
+    expect(await loadRelations(root)).toEqual({ version: 1, edges: [] });
+    expect(await listFlows(root)).toEqual([]);
+    await expect(fs.stat(path.join(root, 'openspec', 'graph'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('persists typed relationships and rejects a dependency cycle', async () => {
+    const relation: Relations = { version: 1, edges: [{ id: 'auth-needs-mail', type: 'depends-on', source: 'authentication', target: 'notifications' }] };
+    expect((await saveRelations(root, relation)).diagnostics).toEqual([]);
+    expect(await loadRelations(root)).toEqual(relation);
+    const invalid: Relations = { ...relation, edges: [...relation.edges, { id: 'mail-needs-auth', type: 'depends-on', source: 'notifications', target: 'authentication' }] };
+    const rejected = await saveRelations(root, invalid);
+    expect(rejected.diagnostics.some((item) => item.code === 'dependency-cycle')).toBe(true);
+    expect(await loadRelations(root)).toEqual(relation);
+  });
+
+  it('keeps layout changes canonical and behavior changes in a digest-backed draft', async () => {
+    const base = emptyFlow('authentication', 'sign-in', 'Sign in');
+    expect((await saveFlow(root, base)).scope).toBe('current');
+    const layout = { ...base, viewport: { x: 15, y: 22, zoom: 1.25 } };
+    expect((await saveFlow(root, layout)).scope).toBe('current');
+    expect(await fs.readFile(graphPath(root, 'flows/authentication/sign-in.yaml'), 'utf8')).toContain('zoom: 1.25');
+    await expect(fs.stat(path.join(root, 'openspec', 'changes', 'adjust-login', 'graph'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+    const project = await projectSnapshot(root);
+    const scenario = project.proposed[0].requirements[0].scenarios.find((item) => item.name === 'Locked account')!;
+    const behavior = {
+      ...layout,
+      nodes: [
+        { id: 'start', type: 'event' as const, label: 'Credentials sent', position: { x: 0, y: 0 } },
+        { id: 'check', type: 'action' as const, label: 'Check account', position: { x: 200, y: 0 } },
+        { id: 'locked', type: 'outcome' as const, label: 'Explain lock', position: { x: 400, y: 0 } },
+      ],
+      edges: [{ id: 'e1', source: 'start', target: 'check' }, { id: 'e2', source: 'check', target: 'locked' }],
+      cases: [{ id: 'locked-case', name: 'Locked account', edgeIds: ['e1', 'e2'], scenario: {
+        capability: 'authentication', requirement: 'Sign in', scenario: 'Locked account', scope: 'change' as const,
+        change: 'adjust-login', fingerprint: scenario.fingerprint,
+      } }],
+    };
+    await expect(saveFlow(root, behavior)).rejects.toThrow('require an active OpenSpec change');
+    const saved = await saveFlow(root, behavior, 'adjust-login');
+    expect(saved.scope).toBe('change');
+    expect(saved.flow.baseDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect((await loadFlow(root, 'authentication', 'sign-in')).nodes).toEqual([]);
+    expect((await pendingDrafts(root))[0].files).toContain('flows/authentication/sign-in.yaml');
+    expect((await preflightReconciliation(root, 'adjust-login')).diagnostics.some((item) => item.code === 'spec-not-synced')).toBe(true);
+
+    const canonicalPath = path.join(root, 'openspec/specs/authentication/spec.md');
+    const original = await fs.readFile(canonicalPath, 'utf8');
+    await fs.writeFile(canonicalPath, original.replace('with valid credentials.', 'with valid credentials and reject a locked account.') + '\n#### Scenario: Locked account\n- **WHEN** a locked member submits credentials\n- **THEN** the system denies access and explains the lock\n');
+    await fs.mkdir(path.join(root, 'openspec/changes/archive'));
+    await fs.rename(path.join(root, 'openspec/changes/adjust-login'), path.join(root, 'openspec/changes/archive/adjust-login'));
+    const pending = await pendingDrafts(root);
+    expect(pending).toEqual([{ change: 'adjust-login', archived: true, files: ['flows/authentication/sign-in.yaml'] }]);
+    const preflight = await preflightReconciliation(root, 'adjust-login', true);
+    expect(preflight.diagnostics).toEqual([]);
+    await reconcileGraph(root, 'adjust-login', true);
+    expect(await pendingDrafts(root)).toEqual([]);
+    const promoted = await loadFlow(root, 'authentication', 'sign-in');
+    expect(promoted.cases[0].scenario.scope).toBe('current');
+    expect(promoted.cases[0].scenario.change).toBeUndefined();
+    expect(promoted.cases[0].scenario.fingerprint).toBe(scenario.fingerprint);
+  });
+
+  it('flags external scenario edits and offers a fingerprint-based rename candidate', async () => {
+    const project = await projectSnapshot(root);
+    const original = project.current[0].requirements[0].scenarios[0];
+    const ref = { capability: 'authentication', requirement: 'Sign in', scenario: original.name, scope: 'current' as const, fingerprint: original.fingerprint };
+    const canonicalPath = path.join(root, 'openspec/specs/authentication/spec.md');
+    const content = await fs.readFile(canonicalPath, 'utf8');
+    await fs.writeFile(canonicalPath, content.replace('Scenario: Valid credentials', 'Scenario: Accepted credentials'));
+    const renamed = await projectSnapshot(root);
+    expect(scenarioLookup(renamed)(ref).candidate?.scenario).toBe('Accepted credentials');
+    await fs.writeFile(canonicalPath, content.replace('starts a session', 'creates a secure session'));
+    const changed = await projectSnapshot(root);
+    const flow = { ...emptyFlow('authentication', 'check'), cases: [{ id: 'case', name: 'Valid credentials', edgeIds: [], scenario: ref }] };
+    expect(validateFlow(flow, scenarioLookup(changed)).some((item) => item.code === 'stale-scenario')).toBe(true);
+  });
+
+  it('does not accept an invalid OpenSpec validation payload as success', async () => {
+    const deltaPath = path.join(root, 'openspec/changes/adjust-login/specs/authentication/spec.md');
+    await fs.writeFile(deltaPath, '## MODIFIED Requirements\n\n### Requirement: Missing target\nThe system SHALL fail validation.\n\n#### Scenario: Unmatched\n- **WHEN** checked\n- **THEN** rejected\n');
+    await expect(validateOpenSpecChange(root, 'adjust-login')).rejects.toThrow();
+  });
+});
