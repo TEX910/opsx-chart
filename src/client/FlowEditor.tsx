@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import type { Flow, FlowNode, ScenarioRef } from '../shared/model.js';
 import type { ProjectSnapshot } from '../server/openspec.js';
 
@@ -37,6 +37,9 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
   const [caseEdges, setCaseEdges] = useState<string[]>([]);
   const [caseScenarioIndex, setCaseScenarioIndex] = useState(0);
   const [edgeToAppend, setEdgeToAppend] = useState('');
+  const [connectionTarget, setConnectionTarget] = useState('');
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const flowInstance = useRef<ReactFlowInstance | null>(null);
 
   const scenarios = useMemo(() => [...project.current, ...project.proposed.filter((item) => item.change === change)]
     .filter((item) => item.id === flow.capability)
@@ -54,6 +57,15 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
       item.scenario.change === highlightedScenario.change);
     if (matching) onSelectCase(matching.id);
   }, [highlightedScenario, flow.cases]);
+
+  useEffect(() => { setConnectionTarget(''); }, [selectedNode]);
+
+  useEffect(() => {
+    if (!detailsExpanded) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setDetailsExpanded(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [detailsExpanded]);
 
   const activeCase = flow.cases.find((item) => item.id === selectedCase);
   const activePath = new Set(activeCase?.edgeIds ?? []);
@@ -87,18 +99,32 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
       cases: flow.cases.map((item) => ({ ...item, edgeIds: item.edgeIds.filter((id) => !removed.has(id)) })) });
   }
 
+  function connectNodes(source: string, target: string): void {
+    if (source === target) return;
+    const id = crypto.randomUUID();
+    onChange({ ...flow, edges: [...flow.edges, { id, source, target }] });
+    setSelectedNode(null);
+    setSelectedEdge(id);
+    setConnectionTarget('');
+  }
+
   function connect(connection: Connection): void {
-    if (!connection.source || !connection.target) return;
-    onChange({ ...flow, edges: [...flow.edges, { id: crypto.randomUUID(), source: connection.source, target: connection.target }] });
+    if (connection.source && connection.target) connectNodes(connection.source, connection.target);
   }
 
   function addNode(): void {
     const label = newLabel.trim();
     if (!label) return;
     const id = crypto.randomUUID();
-    onChange({ ...flow, nodes: [...flow.nodes, { id, type: newType, label, position: { x: 80 + flow.nodes.length * 55, y: 80 + flow.nodes.length * 65 } }] });
+    const anchor = flow.nodes.find((item) => item.id === selectedNode);
+    const position = { x: anchor ? anchor.position.x + 250 : Math.max(80, ...flow.nodes.map((item) => item.position.x + 250)), y: anchor?.position.y ?? 100 };
+    onChange({ ...flow, nodes: [...flow.nodes, { id, type: newType, label, position }] });
     setNewLabel('');
     setSelectedNode(id);
+    requestAnimationFrame(() => {
+      const instance = flowInstance.current;
+      if (instance) void instance.setCenter(position.x + 80, position.y + 35, { zoom: Math.min(instance.getZoom(), 1), duration: 250 });
+    });
   }
 
   function addCase(): void {
@@ -125,7 +151,7 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
     </div>
     {flow.deleted ? <div className="banner warning">Questo flusso è segnato per l'eliminazione nel change selezionato.</div> : null}
     <div className="canvas flow-canvas">
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={changeNodes} onEdgesChange={changeEdges}
+      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onInit={(instance) => { flowInstance.current = instance; }} onNodesChange={changeNodes} onEdgesChange={changeEdges}
         onConnect={connect} onNodeClick={(_event, node) => { setSelectedNode(node.id); setSelectedEdge(null); }}
         onEdgeClick={(_event, edge) => { setSelectedEdge(edge.id); setSelectedNode(null); }}
         onMoveEnd={(_event, viewport) => onChange({ ...flow, viewport })}
@@ -133,7 +159,9 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
         <Background color="#d5dee0" gap={22} size={1} /><Controls /><MiniMap pannable zoomable nodeColor={(node) => nodeColors[(node.data as { kind: FlowNode['type'] }).kind]} />
       </ReactFlow>
     </div>
-    <div className="flow-bottom">
+    {detailsExpanded ? <div className="flow-editor-backdrop" aria-hidden="true" onClick={() => setDetailsExpanded(false)} /> : null}
+    <div className={`flow-bottom ${detailsExpanded ? 'expanded' : ''}`} role={detailsExpanded ? 'dialog' : undefined} aria-modal={detailsExpanded ? true : undefined} aria-label={detailsExpanded ? 'Modifica nodi e percorsi' : undefined}>
+      <div className="flow-panel-header"><strong>Modifica nodi e percorsi</strong><button className="quiet" onClick={() => setDetailsExpanded((value) => !value)}>{detailsExpanded ? 'Chiudi editor' : 'Apri editor'}</button></div>
       <section>
         <h3>Elemento selezionato</h3>
         {selectedNodeValue ? <>
@@ -141,6 +169,8 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
           <label>Tipo <select value={selectedNodeValue.type} onChange={(event) => onChange({ ...flow, nodes: flow.nodes.map((item) => item.id === selectedNode ? { ...item, type: event.target.value as FlowNode['type'] } : item) })}>
             <option value="event">Evento</option><option value="action">Azione</option><option value="decision">Decisione</option><option value="outcome">Esito</option>
           </select></label>
+          <label>Collega a <select value={connectionTarget} onChange={(event) => setConnectionTarget(event.target.value)}><option value="">Scegli un nodo…</option>{flow.nodes.filter((item) => item.id !== selectedNode && !flow.edges.some((edge) => edge.source === selectedNode && edge.target === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
+          <button className="quiet" disabled={!connectionTarget} onClick={() => { if (selectedNode && connectionTarget) connectNodes(selectedNode, connectionTarget); }}>Crea collegamento</button>
           <button className="quiet danger" onClick={() => { if (selectedNode) changeNodes([{ type: 'remove', id: selectedNode }]); setSelectedNode(null); }}>Rimuovi nodo</button>
         </> : selectedEdgeValue ? <>
           <label>Etichetta ramo <input value={selectedEdgeValue.label ?? ''} onChange={(event) => onChange({ ...flow, edges: flow.edges.map((item) => item.id === selectedEdge ? { ...item, label: event.target.value } : item) })} /></label>
@@ -158,6 +188,7 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
           <select aria-label="Scenario da collegare" value={caseScenarioIndex} onChange={(event) => setCaseScenarioIndex(Number(event.target.value))}>
             {scenarios.map((item, index) => <option key={`${item.label}-${index}`} value={index}>{item.label}</option>)}
           </select>
+          <small className="muted">Qui compaiono i collegamenti già creati tra nodi. Per aggiungerne uno, seleziona un nodo nel grafo e usa “Collega a”, oppure trascina tra i punti laterali.</small>
           <div className="inline-fields"><select aria-label="Aggiungi collegamento al percorso" value={edgeToAppend} onChange={(event) => setEdgeToAppend(event.target.value)}>
             <option value="">Scegli un collegamento</option>{flow.edges.map((item) => <option key={item.id} value={item.id}>{flow.nodes.find((node) => node.id === item.source)?.label} → {flow.nodes.find((node) => node.id === item.target)?.label}</option>)}
           </select><button className="quiet" onClick={() => { if (edgeToAppend) setCaseEdges([...caseEdges, edgeToAppend]); }}>Aggiungi</button></div>

@@ -47,7 +47,12 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
   useEffect(() => {
     let cancelled = false;
     const graph = {
-      id: 'capabilities', layoutOptions: { 'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.spacing.nodeNode': '80' },
+      id: 'capabilities', layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.spacing.nodeNode': '100',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '180',
+      },
       children: capabilities.map((item) => ({ id: item.id, width: 205, height: 96 })),
       edges: visibleRelations.map((item) => ({ id: item.id, sources: [item.source], targets: [item.target] })),
     };
@@ -59,7 +64,7 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
   }, [capabilities.map((item) => item.id).join('|'), visibleRelations.map((item) => `${item.id}:${item.source}:${item.target}`).join('|')]);
 
   const nodes: Node[] = capabilities.map((item, index) => ({
-    id: item.id, type: 'capability', position: positions[item.id] ?? { x: (index % 3) * 270, y: Math.floor(index / 3) * 155 },
+    id: item.id, type: 'capability', position: positions[item.id] ?? { x: (index % 3) * 385, y: Math.floor(index / 3) * 190 },
     initialWidth: 205, initialHeight: 96,
     data: { label: item.id, detail: item.purpose.slice(0, 85) || 'Specifica in corso', proposed: item.proposedOnly },
     selected: selected === item.id,
@@ -77,7 +82,7 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
   ];
   return <div className="canvas map-canvas">
     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} nodesConnectable={false}
-      onNodeClick={(_event, node) => onSelect(node.id)} fitView fitViewOptions={{ padding: 0.22 }} proOptions={{ hideAttribution: true }}>
+      onNodeClick={(_event, node) => onSelect(node.id)} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.15 }} proOptions={{ hideAttribution: true }}>
       <Background color="#d5dee0" gap={22} size={1} />
       <Controls showInteractive={false} />
       <MiniMap pannable zoomable nodeColor={(node) => node.id === selected ? '#d86b48' : '#38869b'} />
