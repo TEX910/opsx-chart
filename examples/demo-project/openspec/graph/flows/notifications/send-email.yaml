@@ -1,0 +1,35 @@
+version: 1
+capability: notifications
+id: send-email
+name: Send email
+nodes:
+  - id: queued
+    type: event
+    label: Message queued
+    position: { x: 0, y: 80 }
+  - id: send
+    type: action
+    label: Send email
+    position: { x: 220, y: 80 }
+  - id: delivered
+    type: outcome
+    label: Email delivered
+    position: { x: 440, y: 80 }
+edges:
+  - id: dispatch
+    source: queued
+    target: send
+  - id: delivery
+    source: send
+    target: delivered
+cases:
+  - id: email-delivered
+    name: Email delivered
+    edgeIds: [dispatch, delivery]
+    scenario:
+      capability: notifications
+      requirement: Deliver email
+      scenario: Email delivered
+      scope: current
+      fingerprint: a06a7dc83c034ec249d46a8908e7e99cce21fcb08b9134d79929be1cfa44ad80
+viewport: { x: 40, y: 40, zoom: 1 }

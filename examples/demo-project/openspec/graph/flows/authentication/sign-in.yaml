@@ -1,0 +1,53 @@
+version: 1
+capability: authentication
+id: sign-in
+name: Sign in
+nodes:
+  - id: submit
+    type: event
+    label: Member submits credentials
+    position: { x: 0, y: 100 }
+  - id: valid
+    type: decision
+    label: Credentials valid?
+    position: { x: 240, y: 100 }
+  - id: session
+    type: outcome
+    label: Start session
+    position: { x: 500, y: 0 }
+  - id: denied
+    type: outcome
+    label: Deny access
+    position: { x: 500, y: 200 }
+edges:
+  - id: submitted
+    source: submit
+    target: valid
+  - id: accepted
+    source: valid
+    target: session
+    label: Valid
+  - id: rejected
+    source: valid
+    target: denied
+    label: Invalid
+cases:
+  - id: valid-credentials
+    name: Valid credentials
+    edgeIds: [submitted, accepted]
+    scenario:
+      capability: authentication
+      requirement: Sign in
+      scenario: Valid credentials
+      scope: current
+      fingerprint: 688d229bb29179fcf53922dec4cfedd3f8a52d78541833cbd4373008323533a8
+  - id: invalid-credentials
+    name: Invalid credentials
+    edgeIds: [submitted, rejected]
+    scenario:
+      capability: authentication
+      requirement: Sign in
+      scenario: Invalid credentials
+      scope: current
+      fingerprint: 44514563fa8a601406995003bc3402181251f320cc524e4072db3e9114d48213
+viewport: { x: 40, y: 40, zoom: 1 }

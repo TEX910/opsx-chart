@@ -1,0 +1,6 @@
+version: 1
+edges:
+  - id: member-data
+    type: shares-data-with
+    source: authentication
+    target: notifications

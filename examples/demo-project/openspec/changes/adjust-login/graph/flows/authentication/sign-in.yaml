@@ -1,0 +1,80 @@
+version: 1
+baseDigest: b7d7c0d425dfab10c9faa5ce64acff3396723ef6121a085862fa7168292d27d1
+capability: authentication
+id: sign-in
+name: Sign in with locked-account check
+nodes:
+  - id: submit
+    type: event
+    label: Member submits credentials
+    position: { x: 0, y: 140 }
+  - id: valid
+    type: decision
+    label: Credentials valid?
+    position: { x: 220, y: 140 }
+  - id: locked
+    type: decision
+    label: Account locked?
+    position: { x: 460, y: 70 }
+  - id: session
+    type: outcome
+    label: Start session
+    position: { x: 720, y: 0 }
+  - id: explain-lock
+    type: outcome
+    label: Deny access and explain lock
+    position: { x: 720, y: 140 }
+  - id: denied
+    type: outcome
+    label: Deny access
+    position: { x: 460, y: 260 }
+edges:
+  - id: submitted
+    source: submit
+    target: valid
+  - id: check-lock
+    source: valid
+    target: locked
+    label: Valid
+  - id: rejected
+    source: valid
+    target: denied
+    label: Invalid
+  - id: active-account
+    source: locked
+    target: session
+    label: No
+  - id: locked-account
+    source: locked
+    target: explain-lock
+    label: Yes
+cases:
+  - id: valid-credentials
+    name: Valid credentials
+    edgeIds: [submitted, check-lock, active-account]
+    scenario:
+      capability: authentication
+      requirement: Sign in
+      scenario: Valid credentials
+      scope: current
+      fingerprint: 688d229bb29179fcf53922dec4cfedd3f8a52d78541833cbd4373008323533a8
+  - id: invalid-credentials
+    name: Invalid credentials
+    edgeIds: [submitted, rejected]
+    scenario:
+      capability: authentication
+      requirement: Sign in
+      scenario: Invalid credentials
+      scope: current
+      fingerprint: 44514563fa8a601406995003bc3402181251f320cc524e4072db3e9114d48213
+  - id: locked-account
+    name: Locked account
+    edgeIds: [submitted, check-lock, locked-account]
+    scenario:
+      capability: authentication
+      requirement: Sign in
+      scenario: Locked account
+      scope: change
+      change: adjust-login
+      fingerprint: df6d9c6b28dea2e107111f2c6a9e75ad30f37bba7b5ae9c58c428b8d2b2207fa
+viewport: { x: 20, y: 30, zoom: 0.85 }

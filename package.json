@@ -10,6 +10,7 @@
     "dev": "concurrently -k \"tsx watch src/server/main.ts\" \"vite --host 127.0.0.1\"",
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist/server/main.js",
+    "demo": "npm run build && node dist/server/main.js examples/demo-project",
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
     "test": "vitest run --config vitest.config.ts"

@@ -32,6 +32,10 @@ npm start
 
 Open **http://127.0.0.1:4317**. Enter the path to a local project containing an `openspec/` directory and select **Apri progetto**. At startup, OPSX Chart first tries the current working directory.
 
+### Try the included demo
+
+From this repository, run `npm run demo` and open **http://127.0.0.1:4317**. The demo opens automatically with two connected capabilities, a current sign-in flow, an email flow, and a proposed locked-account branch in the `adjust-login` change. Select **authentication → Flusso**, then switch between the current and draft flow to compare them. The demo is a local OpenSpec project under `examples/demo-project/`, so edits to it are saved there.
+
 ## Work with a change
 
 1. Select a capability on the map and open **Flusso** to inspect its diagram and linked scenarios.
