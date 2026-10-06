@@ -1,66 +1,55 @@
 # OPSX Chart
 
-Local visual companion for OpenSpec projects. OpenSpec Markdown remains the behavioral contract; versioned YAML files in `openspec/graph/` hold capability relationships and flow topology. This is a separate application, so an ordinary OpenSpec project can be opened without migration or a fork of OPSX.
+**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. It shows relationships between capabilities, connects flow paths to scenarios, and keeps the current specification visible beside proposed changes.
 
-## Requirements
+OpenSpec Markdown remains the source of truth for behavior. OPSX Chart adds visual files to the project; it does not require a fork or migration.
 
-- Node.js 22 or newer
-- OpenSpec CLI 1.14.0 or newer (`npm install -g @fission-ai/openspec@latest`)
+## What you can do
 
-## Develop
+- Browse a map of capabilities and their declared relationships.
+- Open a capability to read its requirements and scenarios alongside its flow diagram.
+- Draw events, actions, decisions, and outcomes, then link a path to an OpenSpec scenario.
+- Work on proposed behavior inside an existing OpenSpec change and see validation problems before completing it.
+- Use the OPSX Chart skills to move through the OpenSpec workflow with one change and one task list.
+
+## Get started
+
+You need Node.js 22 or newer and the [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec) version 1.14.0 or newer. Install OpenSpec if you have not already:
 
 ```sh
+npm install -g @fission-ai/openspec@latest
+```
+
+Clone this repository, then run:
+
+```sh
+git clone https://github.com/TEX910/opsx-chart.git
+cd opsx-chart
 npm install
-npm run dev
+npm run build
+npm start
 ```
 
-The API listens on `127.0.0.1:4317` and the development UI on `127.0.0.1:5173`. The first project defaults to the current directory; enter another local project path in the UI to switch. For a built local server, run `npm run build`, then `npm start`, and open `http://127.0.0.1:4317`.
+Open **http://127.0.0.1:4317**. Enter the path to a local project containing an `openspec/` directory and select **Apri progetto**. At startup, OPSX Chart first tries the current working directory.
 
-Select an active change before editing flow behavior. A moved node or viewport saves as layout in the current graph. Adding or changing nodes, edges, or scenario paths saves a draft in the change's `graph/` directory. The inspector shows current and proposed specification text separately, with links to the source Markdown. An external Markdown edit refreshes the workspace; unsaved graph edits stay in the editor for review.
+## Work with a change
 
-## Files and ownership
+1. Select a capability on the map and open **Flusso** to inspect its diagram and linked scenarios.
+2. Select an active OpenSpec change before editing behavior. Moving nodes or the viewport only changes the visual layout; changing a path saves a graph draft under the selected change.
+3. Review the scenario text and diagnostics together. The graph describes the path; the OpenSpec scenario defines the behavior.
+4. When the change is ready, sync its specification and graph drafts, then archive it. The Chart skills can guide these phases from the same change.
 
-- `openspec/specs/<capability>/spec.md`: normative current requirement and scenario text.
-- `openspec/changes/<change>/specs/<capability>/spec.md`: proposed OpenSpec delta.
-- `openspec/graph/relations.yaml`: version 1 directed capability relationships with stable edge IDs and types (`depends-on`, `invokes`, `emits-to`, `shares-data-with`).
-- `openspec/graph/flows/<capability>/<flow-id>.yaml`: version 1 behavior nodes, edges, ordered case paths, scenario references and fingerprints, and layout.
-- `openspec/changes/<change>/graph/flows/...`: behavioral draft with `baseDigest` of the canonical graph. A draft can also mark a flow `deleted: true`.
-- `openspec/changes/<change>/graph/reconciliation.json`: record written after graph promotion.
+| Phase | Skill |
+| --- | --- |
+| Explore | `$opsx-chart-explore` |
+| Propose | `$opsx-chart-propose` |
+| Revise the plan | `$opsx-chart-update` |
+| Implement | `$opsx-chart-apply` |
+| Sync specs and graphs | `$opsx-chart-sync` |
+| Archive | `$opsx-chart-archive` |
 
-The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed and remain suggestions until saved as declared relationships. Graph files do not generate canonical spec Markdown automatically.
+The skills are included in this repository under `.agents/skills/`. They use OpenSpec's artifacts and tasks while adding the graph work to the same change.
 
-## Completing a paired change
+## Contributing
 
-1. Review the graph draft and delta spec; run OpenSpec and graph validation.
-2. Sync the OpenSpec delta into canonical specs using OpenSpec.
-3. Run graph preflight, review any conflict or drift diagnostics, and reconcile the graph draft.
-4. Archive the OpenSpec change. If archive happened first, the pending-drafts view finds the graph under `changes/archive/` and offers preflight and reconciliation there.
-
-## One workflow from OPSX Chart skills
-
-Invoke the Chart skill for the OpenSpec phase you want. Each skill uses the same OpenSpec change ID and planning artifacts; graph work is included in that change's tasks rather than tracked separately.
-
-| Phase | Chart skill | Outcome |
-| --- | --- | --- |
-| Explore | `$opsx-chart-explore` | Read specs and graphs together without edits |
-| Propose | `$opsx-chart-propose` | One proposal, spec delta, design, and task list |
-| Revise plan | `$opsx-chart-update` | Keep that change's scenario and graph tasks aligned |
-| Implement | `$opsx-chart-apply` | Complete code, spec, and graph tasks together |
-| Sync | `$opsx-chart-sync` | Update canonical specs and promote graph drafts |
-| Archive | `$opsx-chart-archive` | Finalize after paired validation |
-
-The focused `opsx-chart-graph-to-spec` and `opsx-chart-spec-to-graph` skills help with a single linked scenario during implementation. `opsx-chart-reconcile` handles graph conflicts and drafts found after archive. OpenSpec Markdown remains the behavior contract; a graph is not an independent second specification.
-
-## CLI
-
-Run `npm run --silent cli -- --help` during development. The CLI reads the same project and graph model as the UI. It provides JSON inspection, validation, draft preparation, and graph reconciliation for assistant skills. For example:
-
-```sh
-npm run --silent cli -- snapshot --root /path/to/project
-npm run --silent cli -- inspect --root /path/to/project --capability authentication --flow sign-in --change adjust-login
-npm run --silent cli -- pending --root /path/to/project
-```
-
-Run `npm run typecheck` and `npm test` to verify the implementation. Integration tests copy the fixture under `test/fixtures/project` and never alter it.
-
-The initial implementation is tracked in `openspec/changes/initial-visual-spec-workspace/`.
+For development setup, file formats, CLI commands, validation, and the reconciliation process, see the [README for contributors](docs/README-CONTRIBUTORS.md).
