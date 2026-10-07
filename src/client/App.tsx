@@ -243,6 +243,9 @@ export function App() {
       <div className="help-heading"><div><span className="eyebrow">OPSX CHART GUIDE</span><h2 id="help-title">Use Chart in an OpenSpec project</h2></div><button className="quiet" type="button" aria-label="Close help" onClick={() => helpDialog.current?.close()}>Close</button></div>
       <div className="help-content">
         <p>Chart connects OpenSpec specifications as a map and describes each capability's behavior as a graph. Chart skills use the same OpenSpec change and task list, so the graph and Markdown move through the same workflow.</p>
+        <h3>Active change and flow</h3>
+        <p><strong>Active change:</strong> the OpenSpec work you have selected. It groups the proposal, tasks, spec deltas, and any graph drafts.</p>
+        <p><strong>Flow:</strong> one behavior graph for a capability. A flow can be current or saved as a draft inside the active change. Saving a draft does not replace the current graph or update the spec Markdown; the graph is promoted when the change is reconciled. One change can contain several draft flows.</p>
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
         <pre><code>opsx-chart init --root /path/to/project --skills</code></pre>
