@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
-import type { Flow, FlowNode, ScenarioRef } from '../shared/model.js';
+import type { Flow, FlowCase, FlowNode, ScenarioRef } from '../shared/model.js';
 import type { ProjectSnapshot } from '../server/openspec.js';
 
 type Props = {
@@ -83,6 +83,11 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   const activePath = new Set(activeCase?.edgeIds ?? []);
   const nodeName = (id: string) => flow.nodes.find((item) => item.id === id)?.label || id;
   const edgeName = (edge: Flow['edges'][number]) => `${nodeName(edge.source)} → ${nodeName(edge.target)}${edge.label ? ` · ${edge.label}` : ''}`;
+  const caseRoute = (item: FlowCase) => {
+    const routeEdges = item.edgeIds.map((id) => flow.edges.find((edge) => edge.id === id));
+    if (!routeEdges.length || routeEdges.some((edge) => !edge)) return 'Percorso incompleto';
+    return nodeName(routeEdges[0]!.source) + routeEdges.map((edge) => `${edge!.label ? ` —${edge!.label}→ ` : ' → '}${nodeName(edge!.target)}`).join('');
+  };
   const pathEdges = caseEdges.map((id) => flow.edges.find((item) => item.id === id));
   const pathConnected = pathEdges.every((edge, index) => edge && (index === 0 || pathEdges[index - 1]?.target === edge.source));
   const firstPathEdge = pathEdges[0];
@@ -165,6 +170,7 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
 
   const selectedNodeValue = flow.nodes.find((item) => item.id === selectedNode);
   const selectedEdgeValue = flow.edges.find((item) => item.id === selectedEdge);
+  const outgoingEdges = selectedNodeValue ? flow.edges.filter((item) => item.source === selectedNodeValue.id) : [];
   const selectedSummary = selectedNodeValue ? `Nodo: ${selectedNodeValue.label}` : selectedEdgeValue
     ? `Collegamento: ${nodeName(selectedEdgeValue.source)} → ${nodeName(selectedEdgeValue.target)}`
     : 'Seleziona un nodo o un collegamento nel grafo.';
@@ -217,8 +223,12 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
           </div>
           <div className="flow-form-card">
             <h4>Collega questo nodo al successivo</h4>
-            <p>Il nuovo collegamento partirà da <strong>{selectedNodeValue.label || 'questo nodo'}</strong> e arriverà al nodo scelto qui sotto.</p>
-            <div className="flow-connect-row"><label>Nodo di destinazione <select value={connectionTarget} onChange={(event) => setConnectionTarget(event.target.value)}><option value="">Scegli il nodo successivo…</option>{flow.nodes.filter((item) => item.id !== selectedNode && !flow.edges.some((edge) => edge.source === selectedNode && edge.target === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
+            <p>Collegamenti diretti in uscita da <strong>{selectedNodeValue.label || 'questo nodo'}</strong>:</p>
+            {outgoingEdges.length ? <ul className="flow-existing-connections">{outgoingEdges.map((edge) => <li key={edge.id}>
+              <div><strong>→ {nodeName(edge.target)}</strong>{edge.label ? <small>Ramo: {edge.label}</small> : null}</div>
+              <button className="quiet" onClick={() => { setSelectedEdge(edge.id); setSelectedNode(null); }}>Modifica collegamento</button>
+            </li>)}</ul> : <p className="flow-field-help">Questo nodo non ha ancora collegamenti in uscita.</p>}
+            <div className="flow-connect-row"><label>{outgoingEdges.length ? 'Aggiungi un altro collegamento verso' : 'Collega al nodo'} <select value={connectionTarget} onChange={(event) => setConnectionTarget(event.target.value)}><option value="">Scegli il nodo successivo…</option>{flow.nodes.filter((item) => item.id !== selectedNode && !flow.edges.some((edge) => edge.source === selectedNode && edge.target === item.id)).map((item) => <option key={item.id} value={item.id}>{item.label || item.id}</option>)}</select></label>
               <button disabled={!connectionTarget} onClick={() => { if (selectedNode && connectionTarget) connectNodes(selectedNode, connectionTarget); }}>Crea collegamento</button></div>
             {flow.nodes.length < 2 ? <p className="flow-field-help">Aggiungi prima un altro nodo usando il comando sopra il grafo.</p> : null}
           </div>
@@ -229,6 +239,7 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
             <h4>{edgeName(selectedEdgeValue)}</h4>
             <label>{flow.nodes.find((item) => item.id === selectedEdgeValue.source)?.type === 'decision' ? 'Nome del ramo' : 'Etichetta del collegamento (facoltativa)'} <input value={selectedEdgeValue.label ?? ''} placeholder="Es. Valido, Non valido" onChange={(event) => onChange({ ...flow, edges: flow.edges.map((item) => item.id === selectedEdge ? { ...item, label: event.target.value } : item) })} /></label>
             {flow.nodes.find((item) => item.id === selectedEdgeValue.source)?.type === 'decision' ? <p className="flow-field-help">Questo collegamento esce da una decisione: dai un nome al ramo per distinguere le alternative.</p> : null}
+            <button className="quiet flow-back-to-node" onClick={() => { setSelectedNode(selectedEdgeValue.source); setSelectedEdge(null); }}>Torna al nodo “{nodeName(selectedEdgeValue.source)}”</button>
           </div>
           <div className="flow-remove-row"><button className="quiet danger" onClick={() => { if (selectedEdge) changeEdges([{ type: 'remove', id: selectedEdge }]); setSelectedEdge(null); }}>Rimuovi collegamento</button><small>Lo rimuove anche dai percorsi che lo contengono.</small></div>
         </> : <div className="flow-form-empty"><p>Non hai selezionato un elemento. Mostra il grafo e clicca un nodo o un collegamento per modificarlo.</p><button className="quiet" onClick={() => setGraphCollapsed(false)}>Mostra grafo</button></div>}
@@ -236,9 +247,10 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
       <section>
         <div className="flow-section-heading"><span className="flow-step-number">2</span><div><h3>Associa un percorso a uno scenario</h3><p>Un percorso è la sequenza dei collegamenti attraversati, dall’evento iniziale all’esito.</p></div></div>
         <div className="flow-form-card">
-          <h4>Percorsi già associati</h4>
+          <h4>Scenari associati ai percorsi del flusso</h4>
+          <p>Ogni scenario segue un percorso completo. Più percorsi possono condividere i primi nodi e separarsi dopo una decisione.</p>
           {flow.cases.length ? <div className="case-list">{flow.cases.map((item) => <button key={item.id} className={`case-item ${selectedCase === item.id ? 'active' : ''}`} onClick={() => onSelectCase(item.id)}>
-            <strong>{item.name}</strong><small>{item.scenario.requirement} / {item.scenario.scenario}</small>
+            <strong>{item.name}</strong><small>Scenario: {item.scenario.requirement} / {item.scenario.scenario}</small><span className="case-route">{caseRoute(item)}</span>
           </button>)}</div> : <p className="flow-field-help">Nessun percorso associato a uno scenario.</p>}
           {activeCase ? <div className="flow-active-case"><p><strong>Scenario OpenSpec:</strong> {activeCase.scenario.requirement} / {activeCase.scenario.scenario}</p>
             <ol className="flow-path-list">{activeCase.edgeIds.map((id, index) => { const edge = flow.edges.find((item) => item.id === id); return <li key={`${id}-${index}`}>{edge ? edgeName(edge) : 'Collegamento non più presente'}</li>; })}</ol>

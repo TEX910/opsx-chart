@@ -41,6 +41,12 @@
 .flow-form-kicker{display:block;margin-bottom:6px;color:#568a88;font-size:10px;font-weight:800;letter-spacing:.12em}
 .flow-field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .flow-field-help{margin:9px 0 0!important;color:#688083!important;font-size:11px!important}
+.flow-existing-connections{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:7px}
+.flow-existing-connections li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid #dce8e4;border-radius:8px;background:#f6faf8}
+.flow-existing-connections strong{display:block;color:#2a555b;font-size:12px;overflow-wrap:anywhere}
+.flow-existing-connections small{display:block;margin-top:3px;color:#728d8e}
+.flow-existing-connections button{flex:none;font-size:11px;padding:7px 9px}
+.flow-back-to-node{margin-top:4px}
 .flow-connect-row{display:flex;align-items:end;gap:10px}
 .flow-connect-row label{flex:1;min-width:0;margin:0}
 .flow-connect-row button{flex:none;max-width:190px}
@@ -50,6 +56,12 @@
 .flow-form-empty p{margin:0 0 12px;color:#607c80;font-size:12px}
 .flow-active-case{margin-top:13px;padding-top:12px;border-top:1px solid #e2ece8}
 .flow-active-case p{margin-bottom:7px}
+.flow-forms .case-list{display:grid;grid-template-columns:1fr;gap:8px;margin:12px 0}
+.flow-forms .case-item{width:100%;padding:10px 12px;border:1px solid #dce8e4;font-size:12px}
+.flow-forms .case-item:hover:not(:disabled){background:#d9eae5;color:#284f54}
+.flow-forms .case-item.active{border-color:#c5843c}
+.flow-forms .case-item.active:hover:not(:disabled){background:#e4ad6b;color:#193f45}
+.flow-forms .case-route{display:block;margin-top:6px;line-height:1.5;overflow-wrap:anywhere}
 .flow-path-list{margin:9px 0 12px;padding-left:26px;color:#345d61;font-size:12px}
 .flow-path-list li{padding:6px 0 6px 4px;border-bottom:1px solid #edf2ef;overflow-wrap:anywhere}
 .flow-path-feedback{margin:10px 0!important;padding:9px 11px;border-radius:7px;background:#edf4f2;color:#416b6a!important}
@@ -57,4 +69,4 @@
 .flow-path-feedback.ready{background:#e0f3e9;color:#28674f!important}
 .flow-associate-button{margin-top:10px}
 @media(max-width:900px){.flow-toolbar{flex-wrap:wrap}}
-@media(max-width:640px){.flow-editor-summary{align-items:stretch;flex-wrap:wrap}.flow-editor-actions{width:100%;flex-wrap:wrap}.flow-editor-actions button{flex:1}.flow-connect-row{align-items:stretch;flex-direction:column}.flow-connect-row button{max-width:none}}
+@media(max-width:640px){.flow-editor-summary{align-items:stretch;flex-wrap:wrap}.flow-editor-actions{width:100%;flex-wrap:wrap}.flow-editor-actions button{flex:1}.flow-connect-row{align-items:stretch;flex-direction:column}.flow-connect-row button{max-width:none}.flow-existing-connections li{align-items:stretch;flex-direction:column}.flow-existing-connections button{align-self:flex-start}}
