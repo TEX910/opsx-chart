@@ -244,7 +244,7 @@ export async function reconcileGraph(root: string, change: string, archived = fa
       const lookup = scenarioLookup(project);
       const cases = value.cases.map((item) => {
         const ref = { ...item.scenario, scope: 'current' as const, change: undefined };
-        return { ...item, scenario: { ...ref, fingerprint: lookup(ref).fingerprint } };
+        return { ...item, pendingSpec: undefined, scenario: { ...ref, fingerprint: lookup(ref).fingerprint } };
       });
       const content = YAML.stringify({ ...value, baseDigest: undefined, cases });
       await writeAtomic(graphPath(root, relative), content);

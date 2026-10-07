@@ -4,7 +4,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from './server/openspec.js';
 import { listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, validateGraph } from './server/graph-store.js';
-import { validateFlow } from './shared/model.js';
+import { pathBehavior, validateFlow } from './shared/model.js';
 
 const [command, ...tokens] = process.argv.slice(2);
 const options = new Map<string, string>();
@@ -50,7 +50,9 @@ async function main(): Promise<void> {
       ?? flows.find((item) => item.id === flowId && item.scope === 'current') : undefined;
     if (flowId && !selected) throw new Error(`Flow not found: ${capability}/${flowId}`);
     const flow = selected ? await loadFlow(root, capability, selected.id, selected.scope === 'change' ? change : undefined) : undefined;
-    print({ capability: specs, relations: relations.edges.filter((item) => item.source === capability || item.target === capability), flows, flow, diagnostics: flow ? validateFlow(flow, scenarioLookup(project)) : [] });
+    print({ capability: specs, relations: relations.edges.filter((item) => item.source === capability || item.target === capability), flows, flow,
+      caseBehaviors: flow?.cases.map((item) => ({ caseId: item.id, scenario: item.scenario, ...pathBehavior(flow, item.edgeIds) })) ?? [],
+      diagnostics: flow ? validateFlow(flow, scenarioLookup(project)) : [] });
     return;
   }
   if (command === 'validate') {

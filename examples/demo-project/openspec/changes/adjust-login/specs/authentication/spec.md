@@ -5,6 +5,7 @@ The system SHALL authenticate a member with valid credentials and reject a locke
 
 #### Scenario: Valid credentials
 - **WHEN** a member submits valid credentials
+- **AND** the member's account is not locked
 - **THEN** the system starts a session
 
 #### Scenario: Invalid credentials
@@ -12,5 +13,6 @@ The system SHALL authenticate a member with valid credentials and reject a locke
 - **THEN** the system denies access
 
 #### Scenario: Locked account
-- **WHEN** a locked member submits credentials
+- **WHEN** a member submits valid credentials
+- **AND** the member's account is locked
 - **THEN** the system denies access and explains the lock

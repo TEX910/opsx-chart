@@ -1,6 +1,6 @@
 # OPSX Chart: README for contributors
 
-OPSX Chart is a separate local application built on top of OpenSpec's documented CLI output. OpenSpec Markdown owns normative requirements and scenarios; versioned YAML files under `openspec/graph/` own capability relationships, flow topology, scenario links, and layout. The app reads both and presents them as one workspace.
+OPSX Chart is a separate local application built on top of OpenSpec's documented CLI output. OpenSpec Markdown owns normative requirements and scenarios; versioned YAML files under `openspec/graph/` own capability relationships, flow topology, node behavior drafts, case paths, scenario links, and layout. The app reads both and presents them as one workspace.
 
 ## Development setup
 
@@ -21,21 +21,21 @@ The API listens on `127.0.0.1:4317` and the development UI on `127.0.0.1:5173`. 
 | `openspec/specs/<capability>/spec.md` | OpenSpec's current behavior contract |
 | `openspec/changes/<change>/specs/<capability>/spec.md` | Proposed OpenSpec delta |
 | `openspec/graph/relations.yaml` | Version 1 directed capability relationships with stable edge IDs and types (`depends-on`, `invokes`, `emits-to`, `shares-data-with`) |
-| `openspec/graph/flows/<capability>/<flow-id>.yaml` | Version 1 flow nodes, edges, ordered case paths, scenario references, fingerprints, and layout |
+| `openspec/graph/flows/<capability>/<flow-id>.yaml` | Version 1 flow nodes, edges, ordered case paths, scenario references, fingerprints, and layout. Decision nodes carry `whens` keyed by outgoing edge ID; outcome nodes carry `then` |
 | `openspec/changes/<change>/graph/flows/...` | Behavioral draft with a `baseDigest` of the canonical graph; a draft may mark a flow `deleted: true` |
 | `openspec/changes/<change>/graph/relations.yaml` | Optional proposed relationship snapshot |
 | `openspec/changes/<change>/graph/reconciliation.json` | Record written after graph promotion |
 
-Graph files do not generate canonical spec Markdown automatically. A path becomes normative only when its matching OpenSpec scenario is reviewed and saved. The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed until confirmed.
+Graph files do not generate spec Markdown automatically. The `opsx-chart-graph-to-spec` skill reads the node descriptors along a case path and writes the corresponding WHEN/AND/THEN scenario in the active change's spec delta. A new case may set `pendingSpec: true` until that scenario exists. For older flows without node descriptors, the UI shows text from linked scenarios next to empty WHEN/THEN fields and lets the user copy it into the node. The scenario becomes normative after review and OpenSpec sync. The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed until confirmed.
 
 ## Editing and reconciliation
 
-Select an active change before editing flow behavior. Node position and viewport changes save as layout in the current graph; node, edge, and scenario path changes save as drafts under the change's `graph/` directory. Each map capability corresponds to one OpenSpec spec ID. The inspector shows the current spec purpose, proposed delta identity, source links, and relationships; the flow editor shows the graph's WHEN/decision/THEN interpretation beside linked OpenSpec scenario text. The editable delta Markdown sits in the flow view. When Markdown changes outside the app, the workspace refreshes while preserving unsaved graph edits for review.
+Select an active change before editing flow behavior. Node position and viewport changes save as layout in the current graph; node, edge, WHEN, THEN, and case path changes save as drafts under the change's `graph/` directory. Each map capability corresponds to one OpenSpec spec ID. The inspector shows the associated spec document and relationships; the flow editor shows node behavior beside linked OpenSpec scenario text. The editable delta Markdown sits in the flow view. When Markdown changes outside the app, the workspace refreshes while preserving unsaved graph edits for review.
 
 To complete a paired change:
 
-1. Review the graph draft and delta spec; run OpenSpec and graph validation.
-2. Sync the OpenSpec delta into canonical specs with the `openspec-sync-specs` skill.
+1. Reconcile each new or changed graph case into the change's spec delta with `opsx-chart-graph-to-spec`, then review both representations and run validation.
+2. Sync the OpenSpec delta into canonical specs with `opsx-chart-sync`.
 3. Run graph preflight, resolve conflicts or text drift, and reconcile the graph draft.
 4. Archive the OpenSpec change. If archive happened first, the pending drafts view finds its graph under `changes/archive/` for recovery.
 

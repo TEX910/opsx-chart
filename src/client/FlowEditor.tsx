@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ReactFlow, Background, Controls, Handle, MiniMap, Position, type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
-import type { Flow, FlowCase, FlowNode, ScenarioRef } from '../shared/model.js';
+import { pathBehavior, type Flow, type FlowCase, type FlowNode, type ScenarioRef } from '../shared/model.js';
 import type { ProjectSnapshot } from '../server/openspec.js';
 
 type Props = {
@@ -22,8 +22,8 @@ const nodeColors: Record<FlowNode['type'], string> = {
 const nodeTypeHelp: Record<FlowNode['type'], string> = {
   event: 'Punto di partenza: qualcosa avvia il flusso.',
   action: 'Operazione eseguita durante il flusso.',
-  decision: 'Bivio: i collegamenti in uscita richiedono un nome, per esempio “Sì” e “No”.',
-  outcome: 'Risultato finale del percorso.',
+  decision: 'Bivio: descrivi il WHEN di ciascun ramo in uscita.',
+  outcome: 'Risultato finale: descrivi qui il THEN.',
 };
 
 function BehaviorNode({ data, selected }: NodeProps<Node<{ label: string; kind: FlowNode['type'] }>>) {
@@ -43,8 +43,8 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   const [newType, setNewType] = useState<FlowNode['type']>('action');
   const [newLabel, setNewLabel] = useState('');
   const [caseName, setCaseName] = useState('');
+  const [caseRequirement, setCaseRequirement] = useState('');
   const [caseEdges, setCaseEdges] = useState<string[]>([]);
-  const [caseScenarioIndex, setCaseScenarioIndex] = useState(0);
   const [edgeToAppend, setEdgeToAppend] = useState('');
   const [connectionTarget, setConnectionTarget] = useState('');
   const [graphCollapsed, setGraphCollapsed] = useState(false);
@@ -61,6 +61,9 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
         scope: item.scope, change: item.change, fingerprint: scenario.fingerprint } as ScenarioRef,
       rawText: scenario.rawText,
     })))), [project, flow.capability, change]);
+  const requirementNames = [...new Set([...project.current, ...project.proposed.filter((item) => item.change === change)]
+    .filter((item) => item.id === flow.capability).flatMap((item) => item.requirements.map((requirement) => requirement.name)))];
+  const selectedRequirement = requirementNames.includes(caseRequirement) ? caseRequirement : requirementNames[0] ?? '';
 
   useEffect(() => { setConnectionTarget(''); }, [selectedNode]);
 
@@ -74,26 +77,32 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   const activeScenario = activeCase && scenarios.find((item) => item.ref.requirement === activeCase.scenario.requirement &&
     item.ref.scenario === activeCase.scenario.scenario && item.ref.scope === activeCase.scenario.scope &&
     item.ref.change === activeCase.scenario.change);
-  const draftScenario = scenarios[caseScenarioIndex];
   const activePath = new Set(activeCase?.edgeIds ?? []);
   const nodeName = (id: string) => flow.nodes.find((item) => item.id === id)?.label || id;
   const edgeName = (edge: Flow['edges'][number]) => `${nodeName(edge.source)} → ${nodeName(edge.target)}${edge.label ? ` · ${edge.label}` : ''}`;
-  const graphStatements = (edgeIds: string[]) => {
-    const route = edgeIds.map((id) => flow.edges.find((edge) => edge.id === id));
-    const start = flow.nodes.find((node) => node.id === route[0]?.source);
-    if (!route.length || route.some((edge, index) => !edge || (index > 0 && route[index - 1]?.target !== edge.source)) || start?.type !== 'event') return [];
-    const statements = [{ keyword: 'WHEN', text: start.label }];
-    for (const edge of route) {
-      const source = flow.nodes.find((node) => node.id === edge!.source);
-      const target = flow.nodes.find((node) => node.id === edge!.target);
-      if (source?.type === 'decision') statements.push({ keyword: 'SE', text: `${source.label} → ${edge!.label || 'ramo senza nome'}` });
-      if (target?.type === 'action') statements.push({ keyword: 'AZIONE', text: target.label });
-      if (target?.type === 'outcome') statements.push({ keyword: 'THEN', text: target.label });
-    }
-    return statements;
-  };
-  const activeStatements = activeCase ? graphStatements(activeCase.edgeIds) : [];
-  const draftStatements = graphStatements(caseEdges);
+  const activeBehavior = activeCase ? pathBehavior(flow, activeCase.edgeIds) : null;
+  const draftBehavior = pathBehavior(flow, caseEdges);
+  const linkedScenario = (item: FlowCase) => scenarios.find((scenario) => scenario.ref.requirement === item.scenario.requirement &&
+    scenario.ref.scenario === item.scenario.scenario && scenario.ref.scope === item.scenario.scope && scenario.ref.change === item.scenario.change);
+  const scenarioStatements = (rawText: string) => [...rawText.matchAll(/^\s*-\s*\*\*(WHEN|AND|THEN)\*\*\s*(.+)$/gm)]
+    .map((match) => ({ keyword: match[1], text: match[2].trim() }));
+  const linkedWhens = (edgeId: string) => flow.cases.flatMap((item) => {
+    if (!item.edgeIds.includes(edgeId)) return [];
+    const linked = linkedScenario(item);
+    if (!linked) return [];
+    const decisionEdges = item.edgeIds.filter((id) => flow.edges.some((edge) => edge.id === id && flow.nodes.some((node) => node.id === edge.source && node.type === 'decision')));
+    const index = decisionEdges.indexOf(edgeId);
+    const conditions = scenarioStatements(linked.rawText).filter((statement) => statement.keyword === 'WHEN' || statement.keyword === 'AND');
+    return index < 0 ? [] : [{ caseName: item.name, text: conditions[index]?.text ?? null, rawText: linked.rawText }];
+  });
+  const linkedThens = (nodeId: string) => flow.cases.flatMap((item) => {
+    const lastEdge = flow.edges.find((edge) => edge.id === item.edgeIds.at(-1));
+    if (lastEdge?.target !== nodeId) return [];
+    const linked = linkedScenario(item);
+    if (!linked) return [];
+    const result = scenarioStatements(linked.rawText).find((statement) => statement.keyword === 'THEN');
+    return [{ caseName: item.name, text: result?.text ?? null, rawText: linked.rawText }];
+  });
   const caseRoute = (item: FlowCase) => {
     const routeEdges = item.edgeIds.map((id) => flow.edges.find((edge) => edge.id === id));
     if (!routeEdges.length || routeEdges.some((edge) => !edge)) return 'Percorso incompleto';
@@ -108,7 +117,7 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   const nextPathEdges = flow.edges.filter((item) => !caseEdges.includes(item.id) && !pathEndsAtOutcome &&
     (caseEdges.length ? item.source === lastPathEdge?.target : flow.nodes.some((node) => node.id === item.source && node.type === 'event')));
   const canAppendEdge = nextPathEdges.some((item) => item.id === edgeToAppend);
-  const canAddCase = !!scenarios.length && !!caseName.trim() && !!caseEdges.length && pathConnected && pathStartsAtEvent && pathEndsAtOutcome;
+  const canAddCase = !!change && !!selectedRequirement && !!caseName.trim() && !!caseEdges.length && pathConnected && pathStartsAtEvent && pathEndsAtOutcome && draftBehavior.complete;
   const nodes: Node[] = flow.nodes.map((item) => ({ id: item.id, type: 'behavior', position: item.position,
     initialWidth: 150, initialHeight: 65,
     data: { label: item.label, kind: item.type }, selected: item.id === selectedNode }));
@@ -130,14 +139,16 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
     const remainingEdges = flow.edges.filter((item) => ids.has(item.source) && ids.has(item.target));
     const edgeIds = new Set(remainingEdges.map((item) => item.id));
     setCaseEdges((current) => current.filter((id) => edgeIds.has(id)));
-    onChange({ ...flow, nodes: next, edges: remainingEdges, cases: flow.cases.map((item) => ({ ...item, edgeIds: item.edgeIds.filter((id) => edgeIds.has(id)) })) });
+    onChange({ ...flow, nodes: next.map((node) => node.whens ? { ...node, whens: Object.fromEntries(Object.entries(node.whens).filter(([id]) => edgeIds.has(id))) } : node),
+      edges: remainingEdges, cases: flow.cases.map((item) => ({ ...item, edgeIds: item.edgeIds.filter((id) => edgeIds.has(id)) })) });
   }
 
   function changeEdges(changes: EdgeChange[]): void {
     const removed = new Set(changes.filter((item) => item.type === 'remove').map((item) => item.id));
     if (!removed.size) return;
     setCaseEdges((current) => current.filter((id) => !removed.has(id)));
-    onChange({ ...flow, edges: flow.edges.filter((item) => !removed.has(item.id)),
+    onChange({ ...flow, nodes: flow.nodes.map((node) => node.whens ? { ...node, whens: Object.fromEntries(Object.entries(node.whens).filter(([id]) => !removed.has(id))) } : node),
+      edges: flow.edges.filter((item) => !removed.has(item.id)),
       cases: flow.cases.map((item) => ({ ...item, edgeIds: item.edgeIds.filter((id) => !removed.has(id)) })) });
   }
 
@@ -171,12 +182,23 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   }
 
   function addCase(): void {
-    const scenario = scenarios[caseScenarioIndex];
-    if (!scenario || !canAddCase) return;
+    if (!canAddCase) return;
+    const name = caseName.trim();
+    const existing = scenarios.find((item) => item.ref.requirement === selectedRequirement && item.ref.scenario === name && item.ref.scope === 'change')
+      ?? scenarios.find((item) => item.ref.requirement === selectedRequirement && item.ref.scenario === name && item.ref.scope === 'current');
+    const scenario: ScenarioRef = existing?.ref ?? { capability: flow.capability, requirement: selectedRequirement, scenario: name, scope: 'change', change };
     const id = crypto.randomUUID();
-    onChange({ ...flow, cases: [...flow.cases, { id, name: caseName.trim(), edgeIds: caseEdges, scenario: scenario.ref }] });
+    onChange({ ...flow, cases: [...flow.cases, { id, name, edgeIds: caseEdges, scenario, pendingSpec: !existing }] });
     onSelectCase(id);
     setCaseName(''); setCaseEdges([]); setEdgeToAppend('');
+  }
+
+  function updateWhen(nodeId: string, edgeId: string, value: string): void {
+    onChange({ ...flow, nodes: flow.nodes.map((node) => node.id === nodeId ? { ...node, whens: { ...node.whens, [edgeId]: value } } : node) });
+  }
+
+  function updateThen(nodeId: string, value: string): void {
+    onChange({ ...flow, nodes: flow.nodes.map((node) => node.id === nodeId ? { ...node, then: value } : node) });
   }
 
   const selectedNodeValue = flow.nodes.find((item) => item.id === selectedNode);
@@ -215,7 +237,7 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
     {graphCollapsed ? <div id="flow-forms" className="flow-bottom flow-forms">
       <div className="flow-form-intro">
         <h2>Modifica il flusso</h2>
-        <p>Modifica il passaggio selezionato, collega i nodi e associa una sequenza di collegamenti a uno scenario OpenSpec.</p>
+        <p>Modifica i nodi, collega i passaggi e descrivi le casistiche. I loro WHEN e THEN verranno riconciliati nella spec OpenSpec.</p>
         <p className="flow-form-context">{change ? <>Change attivo: <strong>{change}</strong>. Le modifiche saranno salvate come bozza del change.</> : 'Per salvare modifiche al comportamento, seleziona un change attivo nella colonna Progetto.'}</p>
       </div>
       <section>
@@ -226,11 +248,31 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
             <h4>{selectedNodeValue.label || 'Senza etichetta'}</h4>
             <div className="flow-field-grid">
               <label>Nome del passaggio <input value={selectedNodeValue.label} onChange={(event) => onChange({ ...flow, nodes: flow.nodes.map((item) => item.id === selectedNode ? { ...item, label: event.target.value } : item) })} /></label>
-              <label>Tipo di passaggio <select value={selectedNodeValue.type} onChange={(event) => onChange({ ...flow, nodes: flow.nodes.map((item) => item.id === selectedNode ? { ...item, type: event.target.value as FlowNode['type'] } : item) })}>
+              <label>Tipo di passaggio <select value={selectedNodeValue.type} onChange={(event) => onChange({ ...flow, nodes: flow.nodes.map((item) => item.id === selectedNode ? { ...item, type: event.target.value as FlowNode['type'], whens: event.target.value === 'decision' ? item.whens : undefined, then: event.target.value === 'outcome' ? item.then : undefined } : item) })}>
                 <option value="event">Evento · avvio</option><option value="action">Azione · operazione</option><option value="decision">Decisione · bivio</option><option value="outcome">Esito · risultato</option>
               </select></label>
             </div>
             <p className="flow-field-help">{nodeTypeHelp[selectedNodeValue.type]}</p>
+            {selectedNodeValue.type === 'decision' ? <div className="flow-node-behavior"><h5>WHEN per ciascun ramo</h5>
+              {outgoingEdges.length ? outgoingEdges.map((edge) => <div key={edge.id}><label>Ramo “{edge.label || nodeName(edge.target)}” → {nodeName(edge.target)}
+                <textarea rows={2} placeholder="Es. un membro invia credenziali valide" value={selectedNodeValue.whens?.[edge.id] ?? ''} onChange={(event) => updateWhen(selectedNodeValue.id, edge.id, event.target.value)} />
+              </label>
+                {!selectedNodeValue.whens?.[edge.id]?.trim() && linkedWhens(edge.id).length ? <div className="flow-linked-source"><strong>Testo già presente in OpenSpec</strong>
+                  {linkedWhens(edge.id).map((hint, index) => <div key={`${hint.caseName}-${index}`}><small>{hint.caseName}: {hint.text ?? hint.rawText.replaceAll('**', '')}</small>
+                    {hint.text ? <button type="button" className="quiet" onClick={() => updateWhen(selectedNodeValue.id, edge.id, hint.text!)}>Usa questo WHEN</button> : null}
+                  </div>)}
+                </div> : null}
+              </div>) : <p className="flow-field-help">Crea un collegamento in uscita per definire il suo WHEN.</p>}
+            </div> : null}
+            {selectedNodeValue.type === 'outcome' ? <div className="flow-node-behavior"><label>THEN di questo esito
+              <textarea rows={2} placeholder="Es. il sistema avvia una sessione" value={selectedNodeValue.then ?? ''} onChange={(event) => updateThen(selectedNodeValue.id, event.target.value)} />
+            </label>
+              {!selectedNodeValue.then?.trim() && linkedThens(selectedNodeValue.id).length ? <div className="flow-linked-source"><strong>Testo già presente in OpenSpec</strong>
+                {linkedThens(selectedNodeValue.id).map((hint, index) => <div key={`${hint.caseName}-${index}`}><small>{hint.caseName}: {hint.text ?? hint.rawText.replaceAll('**', '')}</small>
+                  {hint.text ? <button type="button" className="quiet" onClick={() => updateThen(selectedNodeValue.id, hint.text!)}>Usa questo THEN</button> : null}
+                </div>)}
+              </div> : null}
+            </div> : null}
           </div>
           <div className="flow-form-card">
             <h4>Collega questo nodo al successivo</h4>
@@ -256,40 +298,51 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
         </> : <div className="flow-form-empty"><p>Non hai selezionato un elemento. Mostra il grafo e clicca un nodo o un collegamento per modificarlo.</p><button className="quiet" onClick={() => setGraphCollapsed(false)}>Mostra grafo</button></div>}
       </section>
       <section>
-        <div className="flow-section-heading"><span className="flow-step-number">2</span><div><h3>Associa un percorso a uno scenario</h3><p>Un percorso è la sequenza dei collegamenti attraversati, dall’evento iniziale all’esito.</p></div></div>
+        <div className="flow-section-heading"><span className="flow-step-number">2</span><div><h3>Definisci le casistiche</h3><p>Ogni casistica segue una sequenza di collegamenti, dall’evento iniziale all’esito.</p></div></div>
         <div className="flow-form-card">
-          <h4>Scenari associati ai percorsi del flusso</h4>
-          <p>Ogni scenario segue un percorso completo. Più percorsi possono condividere i primi nodi e separarsi dopo una decisione.</p>
+          <h4>Casistiche del flusso</h4>
+          <p>Ogni casistica usa i WHEN dei rami Decisione attraversati e il THEN del nodo Esito raggiunto. La skill li riconcilia nella spec OpenSpec.</p>
           {flow.cases.length ? <div className="case-list">{flow.cases.map((item) => <button key={item.id} className={`case-item ${selectedCase === item.id ? 'active' : ''}`} onClick={() => onSelectCase(item.id)}>
-            <strong>{item.name}</strong><small>Scenario: {item.scenario.requirement} / {item.scenario.scenario}</small><span className="case-route">{caseRoute(item)}</span>
-          </button>)}</div> : <p className="flow-field-help">Nessun percorso associato a uno scenario.</p>}
-          {activeCase ? <div className="flow-active-case"><p><strong>Scenario OpenSpec:</strong> {activeCase.scenario.requirement} / {activeCase.scenario.scenario}</p>
+            <strong>{item.name}</strong><small>{item.scenario.requirement} / {item.scenario.scenario}{item.pendingSpec ? ' · da riconciliare' : ''}</small><span className="case-route">{caseRoute(item)}</span>
+          </button>)}</div> : <p className="flow-field-help">Nessuna casistica definita.</p>}
+          {activeCase ? <div className="flow-active-case"><p><strong>Destinazione OpenSpec:</strong> {activeCase.scenario.requirement} / {activeCase.scenario.scenario}</p>
             <ol className="flow-path-list">{activeCase.edgeIds.map((id, index) => { const edge = flow.edges.find((item) => item.id === id); return <li key={`${id}-${index}`}>{edge ? edgeName(edge) : 'Collegamento non più presente'}</li>; })}</ol>
-            {activeStatements.length ? <div className="flow-scenario-preview"><strong>Comportamento rappresentato dal grafo</strong><ul className="flow-behavior-steps">{activeStatements.map((statement, index) => <li key={`${statement.keyword}-${index}`}><b>{statement.keyword}</b><span>{statement.text}</span></li>)}</ul></div> : null}
+            {activeBehavior ? <div className="flow-scenario-preview"><strong>WHEN / THEN dei nodi</strong><ul className="flow-behavior-steps">{activeBehavior.whens.map((when, index) => <li key={index}><b>{index ? 'AND' : 'WHEN'}</b><span>{when}</span></li>)}{activeBehavior.then ? <li><b>THEN</b><span>{activeBehavior.then}</span></li> : null}</ul></div> : null}
             {activeScenario ? <div className="flow-scenario-preview"><strong>Testo OpenSpec dello scenario</strong><pre>{activeScenario.rawText.replaceAll('**', '')}</pre></div> : null}
             <button className="quiet danger" onClick={() => { onChange({ ...flow, cases: flow.cases.filter((item) => item.id !== activeCase.id) }); onSelectCase(null); }}>Rimuovi questo percorso</button>
           </div> : null}
         </div>
         <div className="flow-form-card">
-          <h4>Crea un nuovo percorso</h4>
-          <p>Scegli uno scenario OpenSpec e aggiungi, in ordine, i collegamenti che lo rappresentano nel grafo.</p>
+          <h4>Crea una nuova casistica</h4>
+          <p>Costruisci il percorso nel grafo. Scrivi i WHEN sui rami Decisione e il THEN sull'Esito: saranno salvati nei descrittori dei nodi.</p>
           <div className="flow-field-grid">
-            <label>Nome del percorso <input placeholder="Es. Accesso riuscito" value={caseName} onChange={(event) => setCaseName(event.target.value)} /></label>
-            <label>Scenario OpenSpec <select value={caseScenarioIndex} onChange={(event) => setCaseScenarioIndex(Number(event.target.value))} disabled={!scenarios.length}>
-              {scenarios.length ? scenarios.map((item, index) => <option key={`${item.label}-${index}`} value={index}>{item.label}</option>) : <option value={0}>Nessuno scenario disponibile</option>}
+            <label>Nome della casistica <input placeholder="Es. Credenziali valide" value={caseName} onChange={(event) => setCaseName(event.target.value)} /></label>
+            <label>Requisito della spec <select value={selectedRequirement} onChange={(event) => setCaseRequirement(event.target.value)} disabled={!requirementNames.length}>
+              {requirementNames.length ? requirementNames.map((name) => <option key={name} value={name}>{name}</option>) : <option value="">Nessun requisito disponibile</option>}
             </select></label>
           </div>
-          {draftScenario ? <div className="flow-scenario-preview"><strong>WHEN / THEN dello scenario scelto</strong><pre>{draftScenario.rawText.replaceAll('**', '')}</pre></div> : null}
           <div className="flow-connect-row"><label>Collegamento successivo <select value={canAppendEdge ? edgeToAppend : ''} onChange={(event) => setEdgeToAppend(event.target.value)} disabled={!nextPathEdges.length}>
             <option value="">{!flow.edges.length ? 'Crea prima un collegamento tra nodi' : pathEndsAtOutcome ? 'Percorso concluso in un Esito' : caseEdges.length ? 'Scegli un collegamento che continua il percorso…' : nextPathEdges.length ? 'Scegli un collegamento che parte da un Evento…' : 'Crea un collegamento che parte da un Evento'}</option>
             {nextPathEdges.map((item) => <option key={item.id} value={item.id}>{edgeName(item)}</option>)}
           </select></label><button className="quiet" disabled={!canAppendEdge} onClick={() => { setCaseEdges([...caseEdges, edgeToAppend]); setEdgeToAppend(''); }}>Aggiungi al percorso</button></div>
           {caseEdges.length ? <><h5>Collegamenti nel percorso, in ordine</h5><ol className="flow-path-list">{pathEdges.map((edge, index) => <li key={`${caseEdges[index]}-${index}`}>{edge ? edgeName(edge) : 'Collegamento non più presente'}</li>)}</ol>
-            {draftStatements.length ? <div className="flow-scenario-preview"><strong>Comportamento rappresentato dal grafo</strong><ul className="flow-behavior-steps">{draftStatements.map((statement, index) => <li key={`${statement.keyword}-${index}`}><b>{statement.keyword}</b><span>{statement.text}</span></li>)}</ul></div> : null}
+            <div className="flow-node-behavior"><h5>WHEN e THEN dei nodi in questo percorso</h5>
+              {pathEdges.filter((edge) => edge && flow.nodes.some((node) => node.id === edge.source && node.type === 'decision')).map((edge) => {
+                const decision = flow.nodes.find((node) => node.id === edge!.source)!;
+                return <label key={edge!.id}>WHEN · {decision.label} / {edge!.label || nodeName(edge!.target)}
+                  <textarea rows={2} placeholder="Descrivi la condizione osservabile" value={decision.whens?.[edge!.id] ?? ''} onChange={(event) => updateWhen(decision.id, edge!.id, event.target.value)} />
+                </label>;
+              })}
+              {lastPathEdge && pathEndsAtOutcome ? <label>THEN · {nodeName(lastPathEdge.target)}
+                <textarea rows={2} placeholder="Descrivi il risultato osservabile" value={flow.nodes.find((node) => node.id === lastPathEdge.target)?.then ?? ''} onChange={(event) => updateThen(lastPathEdge.target, event.target.value)} />
+              </label> : null}
+              {!pathEdges.some((edge) => edge && flow.nodes.some((node) => node.id === edge.source && node.type === 'decision')) ? <p className="flow-field-help">Aggiungi una Decisione al percorso per definirne il WHEN.</p> : null}
+            </div>
+            {draftBehavior.whens.length || draftBehavior.then ? <div className="flow-scenario-preview"><strong>Descrittori pronti per la spec</strong><ul className="flow-behavior-steps">{draftBehavior.whens.map((when, index) => <li key={index}><b>{index ? 'AND' : 'WHEN'}</b><span>{when}</span></li>)}{draftBehavior.then ? <li><b>THEN</b><span>{draftBehavior.then}</span></li> : null}</ul></div> : null}
             <button className="quiet" onClick={() => setCaseEdges((current) => current.slice(0, -1))}>Rimuovi ultimo collegamento</button>
-            <p className={`flow-path-feedback ${!pathConnected ? 'warning' : pathEndsAtOutcome && pathStartsAtEvent ? 'ready' : ''}`}>{!pathConnected ? 'Il percorso contiene collegamenti non consecutivi o rimossi.' : !pathStartsAtEvent ? 'Suggerimento: inizia da un nodo Evento.' : pathEndsAtOutcome ? 'Il percorso parte da un Evento e termina in un Esito.' : nextPathEdges.length ? `Continua dal nodo “${nodeName(lastPathEdge!.target)}”.` : 'Non ci sono collegamenti successivi: torna al grafo e aggiungi il ramo mancante.'}</p>
+            <p className={`flow-path-feedback ${!pathConnected ? 'warning' : canAddCase ? 'ready' : ''}`}>{!pathConnected ? 'Il percorso contiene collegamenti non consecutivi o rimossi.' : !pathStartsAtEvent ? 'Inizia da un nodo Evento.' : !pathEndsAtOutcome ? nextPathEdges.length ? `Continua dal nodo “${nodeName(lastPathEdge!.target)}”.` : 'Aggiungi un ramo che arrivi a un Esito.' : !draftBehavior.complete ? 'Completa almeno un WHEN sulla Decisione e il THEN sull’Esito.' : !change ? 'Seleziona un change attivo per salvare la casistica.' : 'La casistica è pronta. La skill scriverà lo scenario nella spec.'}</p>
           </> : <p className="flow-field-help">I collegamenti che aggiungi compariranno qui in sequenza. Per crearne altri, torna al grafo.</p>}
-          <button className="flow-associate-button" onClick={addCase} disabled={!canAddCase}>Associa percorso allo scenario</button>
+          <button className="flow-associate-button" onClick={addCase} disabled={!canAddCase}>Crea casistica nel flusso</button>
         </div>
       </section>
     </div> : null}

@@ -37,6 +37,8 @@ export const FlowSchema = z.object({
     type: z.enum(['event', 'action', 'decision', 'outcome']),
     label: z.string(),
     position,
+    whens: z.record(identifier, z.string()).optional(),
+    then: z.string().optional(),
   })),
   edges: z.array(z.object({
     id: identifier,
@@ -49,6 +51,7 @@ export const FlowSchema = z.object({
     name: identifier,
     edgeIds: z.array(identifier),
     scenario: ScenarioRefSchema,
+    pendingSpec: z.boolean().optional(),
   })),
   viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() }).optional(),
 });
@@ -60,6 +63,28 @@ export type Flow = z.infer<typeof FlowSchema>;
 export type FlowNode = Flow['nodes'][number];
 export type FlowEdge = Flow['edges'][number];
 export type FlowCase = Flow['cases'][number];
+
+export function pathBehavior(flow: Flow, edgeIds: string[]): { whens: string[]; then: string | null; complete: boolean } {
+  const nodes = new Map(flow.nodes.map((node) => [node.id, node]));
+  const edges = new Map(flow.edges.map((edge) => [edge.id, edge]));
+  const whens: string[] = [];
+  let missingWhen = false;
+  let lastTarget: string | undefined;
+  for (const edgeId of edgeIds) {
+    const edge = edges.get(edgeId);
+    if (!edge || (lastTarget && edge.source !== lastTarget)) return { whens, then: null, complete: false };
+    const source = nodes.get(edge.source);
+    if (source?.type === 'decision') {
+      const when = source.whens?.[edge.id]?.trim();
+      if (when) whens.push(when);
+      else missingWhen = true;
+    }
+    lastTarget = edge.target;
+  }
+  const outcome = lastTarget ? nodes.get(lastTarget) : undefined;
+  const then = outcome?.type === 'outcome' ? outcome.then?.trim() || null : null;
+  return { whens, then, complete: !missingWhen && whens.length > 0 && !!then };
+}
 
 export type Diagnostic = {
   severity: 'error' | 'warning';
@@ -85,7 +110,7 @@ export function semanticFlow(flow: Flow): unknown {
     deleted: flow.deleted ?? false,
     capability: flow.capability,
     id: flow.id,
-    nodes: flow.nodes.map(({ id, type, label }) => ({ id, type, label })),
+    nodes: flow.nodes.map(({ id, type, label, whens, then }) => ({ id, type, label, whens, then })),
     edges: flow.edges,
     cases: flow.cases,
   };
@@ -146,6 +171,12 @@ export function validateFlow(flow: Flow, lookup?: ScenarioLookup): Diagnostic[] 
     if (!nodes.has(edge.source) || !nodes.has(edge.target)) diagnostics.push({ severity: 'error', code: 'missing-node', message: `Edge ${edge.id} has a missing endpoint`, target: edge.id });
     if (nodes.get(edge.source)?.type === 'decision' && !edge.label?.trim()) diagnostics.push({ severity: 'error', code: 'unlabeled-branch', message: `Decision branch ${edge.id} needs a label`, target: edge.id });
   }
+  for (const node of flow.nodes) {
+    if (node.type === 'decision') for (const edge of flow.edges.filter((item) => item.source === node.id)) {
+      if (!node.whens?.[edge.id]?.trim()) diagnostics.push({ severity: 'warning', code: 'missing-when', message: `Decision branch ${edge.id} needs a WHEN description`, target: node.id });
+    }
+    if (node.type === 'outcome' && !node.then?.trim()) diagnostics.push({ severity: 'warning', code: 'missing-then', message: `Outcome ${node.id} needs a THEN description`, target: node.id });
+  }
   const incoming = new Map(flow.nodes.map((node) => [node.id, 0]));
   for (const edge of flow.edges) incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1);
   const starts = flow.nodes.filter((node) => node.type === 'event' && (incoming.get(node.id) ?? 0) === 0);
@@ -179,7 +210,7 @@ export function validateFlow(flow: Flow, lookup?: ScenarioLookup): Diagnostic[] 
     if (lastTarget && nodes.get(lastTarget)?.type !== 'outcome') diagnostics.push({ severity: 'warning', code: 'case-no-outcome', message: `Case ${graphCase.id} does not end at an outcome`, target: graphCase.id });
     if (lookup) {
       const resolved = lookup(graphCase.scenario);
-      if (!resolved.exists) diagnostics.push({ severity: 'error', code: 'missing-scenario', message: `Scenario not found: ${graphCase.scenario.requirement} / ${graphCase.scenario.scenario}`, target: graphCase.id, candidate: resolved.candidate });
+      if (!resolved.exists) diagnostics.push({ severity: graphCase.pendingSpec && graphCase.scenario.scope === 'change' ? 'warning' : 'error', code: graphCase.pendingSpec && graphCase.scenario.scope === 'change' ? 'scenario-awaiting-sync' : 'missing-scenario', message: `Scenario not found: ${graphCase.scenario.requirement} / ${graphCase.scenario.scenario}`, target: graphCase.id, candidate: resolved.candidate });
       else if (graphCase.scenario.fingerprint && resolved.fingerprint !== graphCase.scenario.fingerprint) diagnostics.push({ severity: 'warning', code: 'stale-scenario', message: `Scenario text changed: ${graphCase.scenario.requirement} / ${graphCase.scenario.scenario}`, target: graphCase.id });
     }
   }

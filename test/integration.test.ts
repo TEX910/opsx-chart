@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { emptyFlow, validateFlow, type Relations } from '../src/shared/model.js';
+import { emptyFlow, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
 import { graphPath, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, saveRelations } from '../src/server/graph-store.js';
 
@@ -50,10 +50,10 @@ describe('OpenSpec project and graph coordination', () => {
       ...layout,
       nodes: [
         { id: 'start', type: 'event' as const, label: 'Credentials sent', position: { x: 0, y: 0 } },
-        { id: 'check', type: 'action' as const, label: 'Check account', position: { x: 200, y: 0 } },
-        { id: 'locked', type: 'outcome' as const, label: 'Explain lock', position: { x: 400, y: 0 } },
+        { id: 'check', type: 'decision' as const, label: 'Account locked?', whens: { e2: 'a locked member submits credentials' }, position: { x: 200, y: 0 } },
+        { id: 'locked', type: 'outcome' as const, label: 'Explain lock', then: 'the system denies access and explains the lock', position: { x: 400, y: 0 } },
       ],
-      edges: [{ id: 'e1', source: 'start', target: 'check' }, { id: 'e2', source: 'check', target: 'locked' }],
+      edges: [{ id: 'e1', source: 'start', target: 'check' }, { id: 'e2', source: 'check', target: 'locked', label: 'Locked' }],
       cases: [{ id: 'locked-case', name: 'Locked account', edgeIds: ['e1', 'e2'], scenario: {
         capability: 'authentication', requirement: 'Sign in', scenario: 'Locked account', scope: 'change' as const,
         change: 'adjust-login', fingerprint: scenario.fingerprint,
@@ -62,6 +62,7 @@ describe('OpenSpec project and graph coordination', () => {
     await expect(saveFlow(root, behavior)).rejects.toThrow('require an active OpenSpec change');
     const saved = await saveFlow(root, behavior, 'adjust-login');
     expect(saved.scope).toBe('change');
+    expect(pathBehavior(saved.flow, saved.flow.cases[0].edgeIds)).toEqual({ whens: ['a locked member submits credentials'], then: 'the system denies access and explains the lock', complete: true });
     expect(saved.flow.baseDigest).toMatch(/^[a-f0-9]{64}$/);
     expect((await loadFlow(root, 'authentication', 'sign-in')).nodes).toEqual([]);
     expect((await pendingDrafts(root))[0].files).toContain('flows/authentication/sign-in.yaml');
@@ -82,6 +83,7 @@ describe('OpenSpec project and graph coordination', () => {
     expect(promoted.cases[0].scenario.scope).toBe('current');
     expect(promoted.cases[0].scenario.change).toBeUndefined();
     expect(promoted.cases[0].scenario.fingerprint).toBe(scenario.fingerprint);
+    expect(promoted.nodes.find((node) => node.id === 'check')?.whens?.e2).toBe('a locked member submits credentials');
   });
 
   it('flags external scenario edits and offers a fingerprint-based rename candidate', async () => {
@@ -97,6 +99,25 @@ describe('OpenSpec project and graph coordination', () => {
     const changed = await projectSnapshot(root);
     const flow = { ...emptyFlow('authentication', 'check'), cases: [{ id: 'case', name: 'Valid credentials', edgeIds: [], scenario: ref }] };
     expect(validateFlow(flow, scenarioLookup(changed)).some((item) => item.code === 'stale-scenario')).toBe(true);
+  });
+
+  it('allows a graph-first case to await its OpenSpec scenario', () => {
+    const flow = {
+      ...emptyFlow('authentication', 'new-case'),
+      nodes: [
+        { id: 'start', type: 'event' as const, label: 'Sign-in begins', position: { x: 0, y: 0 } },
+        { id: 'check', type: 'decision' as const, label: 'Account locked?', whens: { branch: 'the account is locked' }, position: { x: 200, y: 0 } },
+        { id: 'denied', type: 'outcome' as const, label: 'Deny access', then: 'the system denies access', position: { x: 400, y: 0 } },
+      ],
+      edges: [{ id: 'start-check', source: 'start', target: 'check' }, { id: 'branch', source: 'check', target: 'denied', label: 'Locked' }],
+      cases: [{ id: 'new', name: 'Locked sign-in', edgeIds: ['start-check', 'branch'], pendingSpec: true,
+        scenario: { capability: 'authentication', requirement: 'Sign in', scenario: 'Locked sign-in', scope: 'change' as const, change: 'adjust-login' } }],
+    };
+    expect(pathBehavior(flow, flow.cases[0].edgeIds).complete).toBe(true);
+    const pending = validateFlow(flow, () => ({ exists: false }));
+    expect(pending.find((item) => item.code === 'scenario-awaiting-sync')?.severity).toBe('warning');
+    const promoted = { ...flow, cases: flow.cases.map((item) => ({ ...item, scenario: { ...item.scenario, scope: 'current' as const } })) };
+    expect(validateFlow(promoted, () => ({ exists: false })).find((item) => item.code === 'missing-scenario')?.severity).toBe('error');
   });
 
   it('does not accept an invalid OpenSpec validation payload as success', async () => {

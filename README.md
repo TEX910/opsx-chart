@@ -1,14 +1,14 @@
 # OPSX Chart
 
-**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. Each capability on the map represents one OpenSpec spec. The map shows the spec's purpose and connections; the flow shows its behavior and the scenarios linked to each path.
+**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. Each capability on the map represents one OpenSpec spec. The map shows the spec's purpose and connections; the flow lets you write behavior on decision and outcome nodes.
 
-OpenSpec Markdown remains the source of truth for behavior. OPSX Chart adds visual files to the project; it does not require a fork or migration.
+The graph stores behavior drafts. An OPSX Chart skill reconciles them into the OpenSpec Markdown contract. OPSX Chart adds visual files to the project; it does not require a fork or migration.
 
 ## What you can do
 
 - Browse a map of capabilities and their declared relationships.
 - Open a capability to see its spec description and connections, then inspect its scenarios inside the flow editor.
-- Draw events, actions, decisions, and outcomes, then link a path to an OpenSpec scenario.
+- Draw events, actions, decisions, and outcomes. Write a WHEN on each decision branch and a THEN on its outcome, then create a case from the path.
 - Work on proposed behavior inside an existing OpenSpec change and see validation problems before completing it.
 - Use the OPSX Chart skills to move through the OpenSpec workflow with one change and one task list.
 
@@ -39,9 +39,9 @@ From this repository, run `npm run demo` and open **http://127.0.0.1:4317**. The
 ## Work with a change
 
 1. Select a capability on the map and open **Flusso** to inspect its diagram and linked scenarios.
-2. Select an active OpenSpec change before editing behavior. Click a node or connection, then choose **Collassa grafo e modifica** to edit its details. To link a scenario, add the connections in order from an **Evento** to an **Esito** and click **Associa percorso allo scenario**. Finish with **Salva flusso** to save the graph draft under the change.
-3. Review the scenario text and diagnostics together. The graph describes the path; the OpenSpec scenario defines the behavior. Several scenario paths can share a connection before they branch at a decision.
-4. When the change is ready, sync its specification and graph drafts, then archive it. The Chart skills can guide these phases from the same change.
+2. Select an active OpenSpec change before editing behavior. Click a node, then choose **Collassa grafo e modifica** to edit its details. Write a WHEN for each outgoing branch of a **Decisione** and a THEN on each **Esito**. Existing text from linked OpenSpec scenarios appears beside an empty descriptor, where you can copy it into the node. Finish with **Salva flusso** to save the graph draft under the change.
+3. In **Crea una nuova casistica**, choose the requirement and add connections from an **Evento** to an **Esito**. You can write the WHEN and THEN there as well, then click **Crea casistica nel flusso**. The OpenSpec scenario can be created afterward with `$opsx-chart-graph-to-spec`.
+4. Review the graph behavior and generated spec delta together. When the change is ready, sync its specification and graph drafts, then archive it. The Chart skills guide these phases from the same change.
 
 | Phase | Skill |
 | --- | --- |
@@ -49,6 +49,7 @@ From this repository, run `npm run demo` and open **http://127.0.0.1:4317**. The
 | Propose | `$opsx-chart-propose` |
 | Revise the plan | `$opsx-chart-update` |
 | Implement | `$opsx-chart-apply` |
+| Write graph behavior into the spec delta | `$opsx-chart-graph-to-spec` |
 | Sync specs and graphs | `$opsx-chart-sync` |
 | Archive | `$opsx-chart-archive` |
 

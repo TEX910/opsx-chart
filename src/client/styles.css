@@ -46,6 +46,15 @@
 .flow-form-kicker{display:block;margin-bottom:6px;color:#568a88;font-size:10px;font-weight:800;letter-spacing:.12em}
 .flow-field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .flow-field-help{margin:9px 0 0!important;color:#688083!important;font-size:11px!important}
+.flow-node-behavior{display:grid;gap:10px;margin:16px 0 8px;padding-top:14px;border-top:1px solid #e2ece8}
+.flow-node-behavior h5{margin:0;font-size:12px}
+.flow-node-behavior label{margin:0}
+.flow-node-behavior textarea{width:100%;resize:vertical;min-height:58px}
+.flow-linked-source{display:grid;gap:8px;margin:8px 0 4px;padding:11px;border:1px solid #dce8e4;border-radius:8px;background:#f6faf8}
+.flow-linked-source strong{font-size:11px;color:#315e61}
+.flow-linked-source>div{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.flow-linked-source small{flex:1;min-width:180px;color:#506e70;white-space:pre-wrap;line-height:1.4}
+.flow-linked-source button{font-size:11px;padding:6px 9px}
 .flow-existing-connections{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:7px}
 .flow-existing-connections li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid #dce8e4;border-radius:8px;background:#f6faf8}
 .flow-existing-connections strong{display:block;color:#2a555b;font-size:12px;overflow-wrap:anywhere}

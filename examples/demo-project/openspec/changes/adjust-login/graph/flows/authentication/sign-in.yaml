@@ -1,5 +1,5 @@
 version: 1
-baseDigest: b7d7c0d425dfab10c9faa5ce64acff3396723ef6121a085862fa7168292d27d1
+baseDigest: 91d2cd3f910c6670924ab694afd812a61c33d3ec88e3b4e28f30d76d2ea62468
 capability: authentication
 id: sign-in
 name: Sign in with locked-account check
@@ -12,22 +12,31 @@ nodes:
     type: decision
     label: Credentials valid?
     position: { x: 220, y: 140 }
+    whens:
+      check-lock: a member submits valid credentials
+      rejected: a member submits invalid credentials
   - id: locked
     type: decision
     label: Account locked?
     position: { x: 460, y: 70 }
+    whens:
+      active-account: the member's account is not locked
+      locked-account: the member's account is locked
   - id: session
     type: outcome
     label: Start session
     position: { x: 720, y: 0 }
+    then: the system starts a session
   - id: explain-lock
     type: outcome
     label: Deny access and explain lock
     position: { x: 720, y: 140 }
+    then: the system denies access and explains the lock
   - id: denied
     type: outcome
     label: Deny access
     position: { x: 460, y: 260 }
+    then: the system denies access
 edges:
   - id: submitted
     source: submit
@@ -56,8 +65,9 @@ cases:
       capability: authentication
       requirement: Sign in
       scenario: Valid credentials
-      scope: current
-      fingerprint: 688d229bb29179fcf53922dec4cfedd3f8a52d78541833cbd4373008323533a8
+      scope: change
+      change: adjust-login
+      fingerprint: 540bc48559e57fcab92dffa24d0bcb8c6c075a1198601d5922cc5c08744b2944
   - id: invalid-credentials
     name: Invalid credentials
     edgeIds: [submitted, rejected]
@@ -76,5 +86,5 @@ cases:
       scenario: Locked account
       scope: change
       change: adjust-login
-      fingerprint: df6d9c6b28dea2e107111f2c6a9e75ad30f37bba7b5ae9c58c428b8d2b2207fa
+      fingerprint: 99828c4da99e3cae666bae3973afd34efd91741936d49effbc7aa9a59b786515
 viewport: { x: 20, y: 30, zoom: 0.85 }

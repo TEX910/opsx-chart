@@ -7,25 +7,36 @@ nodes:
     type: event
     label: Message queued
     position: { x: 0, y: 80 }
+  - id: is-queued
+    type: decision
+    label: Message queued?
+    position: { x: 190, y: 80 }
+    whens:
+      dispatch: a message is queued
   - id: send
     type: action
     label: Send email
-    position: { x: 220, y: 80 }
+    position: { x: 410, y: 80 }
   - id: delivered
     type: outcome
     label: Email delivered
-    position: { x: 440, y: 80 }
+    position: { x: 630, y: 80 }
+    then: the system sends the email
 edges:
-  - id: dispatch
+  - id: check-queue
     source: queued
+    target: is-queued
+  - id: dispatch
+    source: is-queued
     target: send
+    label: Queued
   - id: delivery
     source: send
     target: delivered
 cases:
   - id: email-delivered
     name: Email delivered
-    edgeIds: [dispatch, delivery]
+    edgeIds: [check-queue, dispatch, delivery]
     scenario:
       capability: notifications
       requirement: Deliver email

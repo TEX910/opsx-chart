@@ -11,14 +11,19 @@ nodes:
     type: decision
     label: Credentials valid?
     position: { x: 240, y: 100 }
+    whens:
+      accepted: a member submits valid credentials
+      rejected: a member submits invalid credentials
   - id: session
     type: outcome
     label: Start session
     position: { x: 500, y: 0 }
+    then: the system starts a session
   - id: denied
     type: outcome
     label: Deny access
     position: { x: 500, y: 200 }
+    then: the system denies access
 edges:
   - id: submitted
     source: submit
