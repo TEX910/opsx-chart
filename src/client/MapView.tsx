@@ -18,7 +18,7 @@ type Props = {
 function CapabilityNode({ data, selected }: NodeProps<Node<{ label: string; detail: string; proposed: boolean }>>) {
   return <div className={`cap-node ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}>
     <Handle type="target" position={Position.Left} isConnectable={false} />
-    <span className="cap-kicker">{data.proposed ? 'SPEC PROPOSTA' : 'SPEC ATTUALE'}</span>
+    <span className="cap-kicker">{data.proposed ? 'PROPOSED SPEC' : 'CURRENT SPEC'}</span>
     <strong>{data.label}</strong>
     <small>{data.detail}</small>
     <Handle type="source" position={Position.Right} isConnectable={false} />
@@ -66,7 +66,7 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
   const nodes: Node[] = capabilities.map((item, index) => ({
     id: item.id, type: 'capability', position: positions[item.id] ?? { x: (index % 3) * 385, y: Math.floor(index / 3) * 190 },
     initialWidth: 205, initialHeight: 96,
-    data: { label: item.id, detail: item.purpose.slice(0, 85) || 'Specifica in corso', proposed: item.proposedOnly },
+    data: { label: item.id, detail: item.purpose.slice(0, 85) || 'Spec in progress', proposed: item.proposedOnly },
     selected: selected === item.id,
   }));
   const edges: Edge[] = [
@@ -76,7 +76,7 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
       markerEnd: { type: MarkerType.ArrowClosed, color: '#2e7082' },
       labelStyle: { fill: '#17485a', fontSize: 11 } })),
     ...suggestions.filter((item) => ids.has(item.source) && ids.has(item.target) && (item.source === selected || item.target === selected)).map((item, index) => ({
-      id: `suggestion-${index}`, source: item.source, target: item.target, label: 'possibile',
+      id: `suggestion-${index}`, source: item.source, target: item.target, label: 'possible',
       style: { stroke: '#b4a483', strokeDasharray: '5 5', strokeWidth: 1.5 }, labelStyle: { fill: '#827256', fontSize: 10 },
     })),
   ];

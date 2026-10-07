@@ -59,6 +59,24 @@
 .graph-setup strong{font-size:12px;color:#73522e}
 .graph-setup small{color:#756a58;line-height:1.4}
 .graph-setup button{font-size:11px}
+.help-trigger{flex:none;background:#2c5960;color:#e8f2f0;border:1px solid #63888b}
+.help-trigger:hover:not(:disabled){background:#39747a}
+.help-dialog{width:min(680px,calc(100vw - 28px));max-height:min(82vh,800px);padding:0;border:1px solid #d5e5df;border-radius:14px;box-shadow:0 25px 70px #102f3560;color:#223b40;background:#fff}
+.help-dialog::backdrop{background:#102c32a8}
+.help-heading{position:sticky;top:0;z-index:1;display:flex;align-items:start;justify-content:space-between;gap:16px;padding:20px 24px 15px;background:#fff;border-bottom:1px solid #e0eae6}
+.help-heading h2{margin:0;font-size:22px}
+.help-heading button{flex:none}
+.help-content{padding:20px 24px 26px;font-size:13px;line-height:1.55}
+.help-content p{margin:0 0 15px;color:#466467}
+.help-content h3{margin:21px 0 8px;font-size:15px}
+.help-content ol{margin:0 0 10px;padding-left:22px}
+.help-content li{margin:5px 0}
+.help-content pre{overflow:auto;margin:8px 0 14px;padding:13px;border-radius:8px;background:#edf5f2;color:#254f54}
+.help-content pre code{padding:0;background:none}
+.help-skills{display:grid;gap:8px;margin:10px 0 18px}
+.help-skills>div{display:grid;gap:5px;padding:10px 12px;border:1px solid #e0eae6;border-radius:8px;background:#f7faf9}
+.help-skills dt{font-weight:700}
+.help-skills dd{margin:0;color:#526f71}
 .flow-existing-connections{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:7px}
 .flow-existing-connections li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid #dce8e4;border-radius:8px;background:#f6faf8}
 .flow-existing-connections strong{display:block;color:#2a555b;font-size:12px;overflow-wrap:anywhere}
