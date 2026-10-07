@@ -39,7 +39,7 @@ From this repository, run `npm run demo` and open **http://127.0.0.1:4317**. The
 ## Work with a change
 
 1. Select a capability on the map and open **Flusso** to inspect its diagram and linked scenarios.
-2. Select an active OpenSpec change before editing behavior. Moving nodes or the viewport only changes the visual layout; changing a path saves a graph draft under the selected change.
+2. Select an active OpenSpec change before editing behavior. Click a node or connection, then choose **Collassa grafo e modifica** to edit its details. To link a scenario, add the connections in order from an **Evento** to an **Esito** and click **Associa percorso allo scenario**. Finish with **Salva flusso** to save the graph draft under the change.
 3. Review the scenario text and diagnostics together. The graph describes the path; the OpenSpec scenario defines the behavior.
 4. When the change is ready, sync its specification and graph drafts, then archive it. The Chart skills can guide these phases from the same change.
 

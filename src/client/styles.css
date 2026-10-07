@@ -10,14 +10,51 @@
 
 .flow-page{overflow:auto}
 .flow-editor{flex:1 0 auto}
+.flow-toolbar .new-node-type{min-width:125px}
+.flow-toolbar .new-node-type select{max-width:none}
+.flow-toolbar .new-node-name{flex:1;min-width:180px}
+.flow-toolbar .new-node-name input{width:100%}
 .flow-canvas{min-height:260px}
 .flow-canvas.collapsed{display:none}
 .flow-editor-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 16px;background:#edf5f2;border-top:2px solid #b7d4cd}
-.flow-editor-summary>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.flow-editor-summary .flow-selection-summary{display:flex;flex-direction:column;gap:3px;min-width:0}
 .flow-editor-summary strong{color:#28595d;font:700 13px 'Space Grotesk',sans-serif}
 .flow-editor-summary span{color:#607c80;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.flow-editor-summary button{flex:none}
+.flow-editor-summary.editing{position:sticky;top:0;z-index:4;box-shadow:0 3px 10px #2145421c}
+.flow-editor-actions{display:flex;align-items:center;gap:8px;flex:none}
+.flow-editor-actions button{flex:none}
 .flow-bottom.flow-forms{display:block;flex:none;height:auto;max-height:none;overflow:visible;background:#fff;border-top:1px solid #d5e5df}
 .flow-bottom.flow-forms section{min-height:auto;overflow:visible;padding:20px clamp(16px,5vw,48px);border-bottom:1px solid #d5e5df}
 .flow-bottom.flow-forms section>*{max-width:900px}
-@media(max-width:640px){.flow-editor-summary{align-items:stretch;flex-wrap:wrap}.flow-editor-summary button{width:100%}}
+.flow-form-intro{padding:20px clamp(16px,5vw,48px);background:#f6faf8;border-bottom:1px solid #d5e5df}
+.flow-form-intro h2{margin:0 0 6px;font-size:22px}
+.flow-form-intro p{max-width:900px;margin:0 0 10px;color:#516e70;font-size:13px;line-height:1.5}
+.flow-form-intro .flow-form-context{display:inline-block;margin:0;padding:8px 11px;border-radius:7px;background:#e6f0ec;color:#345f61;font-size:11px}
+.flow-section-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:15px}
+.flow-section-heading h3{margin:0 0 4px;font-size:17px}
+.flow-section-heading p{margin:0;color:#698184;font-size:12px;line-height:1.45}
+.flow-step-number{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:50%;background:#23545b;color:#fff;font:700 13px 'Space Grotesk',sans-serif}
+.flow-form-card{margin:0 0 14px;padding:17px 18px;border:1px solid #dce8e4;border-radius:10px;background:#fff}
+.flow-form-card h4{margin:0 0 8px;font-size:15px}
+.flow-form-card h5{margin:16px 0 7px;font-size:12px}
+.flow-form-card p{margin:0 0 12px;color:#5f797b;font-size:12px;line-height:1.5}
+.flow-form-kicker{display:block;margin-bottom:6px;color:#568a88;font-size:10px;font-weight:800;letter-spacing:.12em}
+.flow-field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.flow-field-help{margin:9px 0 0!important;color:#688083!important;font-size:11px!important}
+.flow-connect-row{display:flex;align-items:end;gap:10px}
+.flow-connect-row label{flex:1;min-width:0;margin:0}
+.flow-connect-row button{flex:none;max-width:190px}
+.flow-remove-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px}
+.flow-remove-row small{color:#789092}
+.flow-form-empty{padding:18px;border:1px dashed #bfd3ce;border-radius:9px;background:#f8fbfa}
+.flow-form-empty p{margin:0 0 12px;color:#607c80;font-size:12px}
+.flow-active-case{margin-top:13px;padding-top:12px;border-top:1px solid #e2ece8}
+.flow-active-case p{margin-bottom:7px}
+.flow-path-list{margin:9px 0 12px;padding-left:26px;color:#345d61;font-size:12px}
+.flow-path-list li{padding:6px 0 6px 4px;border-bottom:1px solid #edf2ef;overflow-wrap:anywhere}
+.flow-path-feedback{margin:10px 0!important;padding:9px 11px;border-radius:7px;background:#edf4f2;color:#416b6a!important}
+.flow-path-feedback.warning{background:#fff1df;color:#8b602b!important}
+.flow-path-feedback.ready{background:#e0f3e9;color:#28674f!important}
+.flow-associate-button{margin-top:10px}
+@media(max-width:900px){.flow-toolbar{flex-wrap:wrap}}
+@media(max-width:640px){.flow-editor-summary{align-items:stretch;flex-wrap:wrap}.flow-editor-actions{width:100%;flex-wrap:wrap}.flow-editor-actions button{flex:1}.flow-connect-row{align-items:stretch;flex-direction:column}.flow-connect-row button{max-width:none}}
