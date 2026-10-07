@@ -1,13 +1,13 @@
 # OPSX Chart
 
-**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. It shows relationships between capabilities, connects flow paths to scenarios, and keeps the current specification visible beside proposed changes.
+**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. Each capability on the map represents one OpenSpec spec. The map shows the spec's purpose and connections; the flow shows its behavior and the scenarios linked to each path.
 
 OpenSpec Markdown remains the source of truth for behavior. OPSX Chart adds visual files to the project; it does not require a fork or migration.
 
 ## What you can do
 
 - Browse a map of capabilities and their declared relationships.
-- Open a capability to read its requirements and scenarios alongside its flow diagram.
+- Open a capability to see its spec description and connections, then inspect its scenarios inside the flow editor.
 - Draw events, actions, decisions, and outcomes, then link a path to an OpenSpec scenario.
 - Work on proposed behavior inside an existing OpenSpec change and see validation problems before completing it.
 - Use the OPSX Chart skills to move through the OpenSpec workflow with one change and one task list.

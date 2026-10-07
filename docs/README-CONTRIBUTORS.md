@@ -30,7 +30,7 @@ Graph files do not generate canonical spec Markdown automatically. A path become
 
 ## Editing and reconciliation
 
-Select an active change before editing flow behavior. Node position and viewport changes save as layout in the current graph; node, edge, and scenario path changes save as drafts under the change's `graph/` directory. The inspector shows current and proposed specification text separately, with links to the Markdown source. When Markdown changes outside the app, the workspace refreshes while preserving unsaved graph edits for review.
+Select an active change before editing flow behavior. Node position and viewport changes save as layout in the current graph; node, edge, and scenario path changes save as drafts under the change's `graph/` directory. Each map capability corresponds to one OpenSpec spec ID. The inspector shows the current spec purpose, proposed delta identity, source links, and relationships; the flow editor shows the graph's WHEN/decision/THEN interpretation beside linked OpenSpec scenario text. The editable delta Markdown sits in the flow view. When Markdown changes outside the app, the workspace refreshes while preserving unsaved graph edits for review.
 
 To complete a paired change:
 

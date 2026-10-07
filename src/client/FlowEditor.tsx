@@ -12,7 +12,6 @@ type Props = {
   onSave: () => void;
   selectedCase: string | null;
   onSelectCase: (id: string | null) => void;
-  highlightedScenario: ScenarioRef | null;
   onChange: (flow: Flow) => void;
 };
 
@@ -38,7 +37,7 @@ function BehaviorNode({ data, selected }: NodeProps<Node<{ label: string; kind: 
 
 const nodeTypes = { behavior: BehaviorNode };
 
-export function FlowEditor({ flow, project, change, dirty, saving, onSave, selectedCase, onSelectCase, highlightedScenario, onChange }: Props) {
+export function FlowEditor({ flow, project, change, dirty, saving, onSave, selectedCase, onSelectCase, onChange }: Props) {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [newType, setNewType] = useState<FlowNode['type']>('action');
@@ -63,14 +62,6 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
       rawText: scenario.rawText,
     })))), [project, flow.capability, change]);
 
-  useEffect(() => {
-    if (!highlightedScenario) return;
-    const matching = flow.cases.find((item) => item.scenario.requirement === highlightedScenario.requirement &&
-      item.scenario.scenario === highlightedScenario.scenario && item.scenario.scope === highlightedScenario.scope &&
-      item.scenario.change === highlightedScenario.change);
-    if (matching) onSelectCase(matching.id);
-  }, [highlightedScenario, flow.cases]);
-
   useEffect(() => { setConnectionTarget(''); }, [selectedNode]);
 
   useEffect(() => {
@@ -80,9 +71,29 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
   }, [graphCollapsed]);
 
   const activeCase = flow.cases.find((item) => item.id === selectedCase);
+  const activeScenario = activeCase && scenarios.find((item) => item.ref.requirement === activeCase.scenario.requirement &&
+    item.ref.scenario === activeCase.scenario.scenario && item.ref.scope === activeCase.scenario.scope &&
+    item.ref.change === activeCase.scenario.change);
+  const draftScenario = scenarios[caseScenarioIndex];
   const activePath = new Set(activeCase?.edgeIds ?? []);
   const nodeName = (id: string) => flow.nodes.find((item) => item.id === id)?.label || id;
   const edgeName = (edge: Flow['edges'][number]) => `${nodeName(edge.source)} → ${nodeName(edge.target)}${edge.label ? ` · ${edge.label}` : ''}`;
+  const graphStatements = (edgeIds: string[]) => {
+    const route = edgeIds.map((id) => flow.edges.find((edge) => edge.id === id));
+    const start = flow.nodes.find((node) => node.id === route[0]?.source);
+    if (!route.length || route.some((edge, index) => !edge || (index > 0 && route[index - 1]?.target !== edge.source)) || start?.type !== 'event') return [];
+    const statements = [{ keyword: 'WHEN', text: start.label }];
+    for (const edge of route) {
+      const source = flow.nodes.find((node) => node.id === edge!.source);
+      const target = flow.nodes.find((node) => node.id === edge!.target);
+      if (source?.type === 'decision') statements.push({ keyword: 'SE', text: `${source.label} → ${edge!.label || 'ramo senza nome'}` });
+      if (target?.type === 'action') statements.push({ keyword: 'AZIONE', text: target.label });
+      if (target?.type === 'outcome') statements.push({ keyword: 'THEN', text: target.label });
+    }
+    return statements;
+  };
+  const activeStatements = activeCase ? graphStatements(activeCase.edgeIds) : [];
+  const draftStatements = graphStatements(caseEdges);
   const caseRoute = (item: FlowCase) => {
     const routeEdges = item.edgeIds.map((id) => flow.edges.find((edge) => edge.id === id));
     if (!routeEdges.length || routeEdges.some((edge) => !edge)) return 'Percorso incompleto';
@@ -254,6 +265,8 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
           </button>)}</div> : <p className="flow-field-help">Nessun percorso associato a uno scenario.</p>}
           {activeCase ? <div className="flow-active-case"><p><strong>Scenario OpenSpec:</strong> {activeCase.scenario.requirement} / {activeCase.scenario.scenario}</p>
             <ol className="flow-path-list">{activeCase.edgeIds.map((id, index) => { const edge = flow.edges.find((item) => item.id === id); return <li key={`${id}-${index}`}>{edge ? edgeName(edge) : 'Collegamento non più presente'}</li>; })}</ol>
+            {activeStatements.length ? <div className="flow-scenario-preview"><strong>Comportamento rappresentato dal grafo</strong><ul className="flow-behavior-steps">{activeStatements.map((statement, index) => <li key={`${statement.keyword}-${index}`}><b>{statement.keyword}</b><span>{statement.text}</span></li>)}</ul></div> : null}
+            {activeScenario ? <div className="flow-scenario-preview"><strong>Testo OpenSpec dello scenario</strong><pre>{activeScenario.rawText.replaceAll('**', '')}</pre></div> : null}
             <button className="quiet danger" onClick={() => { onChange({ ...flow, cases: flow.cases.filter((item) => item.id !== activeCase.id) }); onSelectCase(null); }}>Rimuovi questo percorso</button>
           </div> : null}
         </div>
@@ -266,11 +279,13 @@ export function FlowEditor({ flow, project, change, dirty, saving, onSave, selec
               {scenarios.length ? scenarios.map((item, index) => <option key={`${item.label}-${index}`} value={index}>{item.label}</option>) : <option value={0}>Nessuno scenario disponibile</option>}
             </select></label>
           </div>
+          {draftScenario ? <div className="flow-scenario-preview"><strong>WHEN / THEN dello scenario scelto</strong><pre>{draftScenario.rawText.replaceAll('**', '')}</pre></div> : null}
           <div className="flow-connect-row"><label>Collegamento successivo <select value={canAppendEdge ? edgeToAppend : ''} onChange={(event) => setEdgeToAppend(event.target.value)} disabled={!nextPathEdges.length}>
             <option value="">{!flow.edges.length ? 'Crea prima un collegamento tra nodi' : pathEndsAtOutcome ? 'Percorso concluso in un Esito' : caseEdges.length ? 'Scegli un collegamento che continua il percorso…' : nextPathEdges.length ? 'Scegli un collegamento che parte da un Evento…' : 'Crea un collegamento che parte da un Evento'}</option>
             {nextPathEdges.map((item) => <option key={item.id} value={item.id}>{edgeName(item)}</option>)}
           </select></label><button className="quiet" disabled={!canAppendEdge} onClick={() => { setCaseEdges([...caseEdges, edgeToAppend]); setEdgeToAppend(''); }}>Aggiungi al percorso</button></div>
           {caseEdges.length ? <><h5>Collegamenti nel percorso, in ordine</h5><ol className="flow-path-list">{pathEdges.map((edge, index) => <li key={`${caseEdges[index]}-${index}`}>{edge ? edgeName(edge) : 'Collegamento non più presente'}</li>)}</ol>
+            {draftStatements.length ? <div className="flow-scenario-preview"><strong>Comportamento rappresentato dal grafo</strong><ul className="flow-behavior-steps">{draftStatements.map((statement, index) => <li key={`${statement.keyword}-${index}`}><b>{statement.keyword}</b><span>{statement.text}</span></li>)}</ul></div> : null}
             <button className="quiet" onClick={() => setCaseEdges((current) => current.slice(0, -1))}>Rimuovi ultimo collegamento</button>
             <p className={`flow-path-feedback ${!pathConnected ? 'warning' : pathEndsAtOutcome && pathStartsAtEvent ? 'ready' : ''}`}>{!pathConnected ? 'Il percorso contiene collegamenti non consecutivi o rimossi.' : !pathStartsAtEvent ? 'Suggerimento: inizia da un nodo Evento.' : pathEndsAtOutcome ? 'Il percorso parte da un Evento e termina in un Esito.' : nextPathEdges.length ? `Continua dal nodo “${nodeName(lastPathEdge!.target)}”.` : 'Non ci sono collegamenti successivi: torna al grafo e aggiungi il ramo mancante.'}</p>
           </> : <p className="flow-field-help">I collegamenti che aggiungi compariranno qui in sequenza. Per crearne altri, torna al grafo.</p>}

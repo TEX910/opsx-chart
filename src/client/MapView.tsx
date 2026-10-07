@@ -18,7 +18,7 @@ type Props = {
 function CapabilityNode({ data, selected }: NodeProps<Node<{ label: string; detail: string; proposed: boolean }>>) {
   return <div className={`cap-node ${selected ? 'selected' : ''} ${data.proposed ? 'proposed' : ''}`}>
     <Handle type="target" position={Position.Left} isConnectable={false} />
-    <span className="cap-kicker">{data.proposed ? 'PROPOSTA' : 'CAPABILITY'}</span>
+    <span className="cap-kicker">{data.proposed ? 'SPEC PROPOSTA' : 'SPEC ATTUALE'}</span>
     <strong>{data.label}</strong>
     <small>{data.detail}</small>
     <Handle type="source" position={Position.Right} isConnectable={false} />
