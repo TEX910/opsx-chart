@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emptyFlow, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
-import { graphPath, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, saveRelations } from '../src/server/graph-store.js';
+import { graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, saveRelations } from '../src/server/graph-store.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
 let root: string;
@@ -24,6 +24,18 @@ describe('OpenSpec project and graph coordination', () => {
     expect(await loadRelations(root)).toEqual({ version: 1, edges: [] });
     expect(await listFlows(root)).toEqual([]);
     await expect(fs.stat(path.join(root, 'openspec', 'graph'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('initializes a graph workspace without overwriting existing graph data', async () => {
+    expect((await graphWorkspaceStatus(root)).initialized).toBe(false);
+    expect((await initGraphWorkspace(root)).created).toBe(true);
+    expect((await graphWorkspaceStatus(root)).initialized).toBe(true);
+    expect(await loadRelations(root)).toEqual({ version: 1, edges: [] });
+    expect(await fs.readFile(graphPath(root, 'flows/.gitkeep'), 'utf8')).toBe('');
+    const relation: Relations = { version: 1, edges: [{ id: 'auth-mail', type: 'invokes', source: 'authentication', target: 'notifications' }] };
+    await saveRelations(root, relation);
+    expect((await initGraphWorkspace(root)).created).toBe(false);
+    expect(await loadRelations(root)).toEqual(relation);
   });
 
   it('persists typed relationships and rejects a dependency cycle', async () => {

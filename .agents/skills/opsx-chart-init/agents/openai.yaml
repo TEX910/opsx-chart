@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Init"
+  short_description: "Add graph files and Chart skills to an OpenSpec project"

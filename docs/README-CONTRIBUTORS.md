@@ -14,6 +14,8 @@ npm run dev
 
 The API listens on `127.0.0.1:4317` and the development UI on `127.0.0.1:5173`. The initial project defaults to the current directory; enter another local OpenSpec project path in the UI to switch. For a built local server, run `npm run build`, then `npm start`, and open `http://127.0.0.1:4317`.
 
+To use Chart from another local OpenSpec checkout, run `npm run build && npm link` here, then `opsx-chart init --root /path/to/project --skills`. The CLI creates `openspec/graph/relations.yaml` and `flows/.gitkeep` only when absent and copies missing `opsx-chart-*` skill directories to the project's `.agents/skills/`. Existing files are not overwritten. Without `--skills`, it initializes only the graph workspace; the app exposes the same graph-only operation as **Attiva spazio grafi** when the workspace is missing. The target project must also have access to the OpenSpec phase skills that the Chart phase skills call.
+
 ## File ownership
 
 | File | Owner and purpose |

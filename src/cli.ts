@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from './server/openspec.js';
-import { listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, validateGraph } from './server/graph-store.js';
+import { initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, validateGraph } from './server/graph-store.js';
 import { pathBehavior, validateFlow } from './shared/model.js';
 
 const [command, ...tokens] = process.argv.slice(2);
@@ -24,9 +25,28 @@ const required = (name: string) => {
 const root = path.resolve(option('root') ?? process.cwd());
 const print = (value: unknown) => process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 
+async function installProjectSkills(projectRoot: string): Promise<{ installed: string[]; alreadyPresent: string[] }> {
+  const source = fileURLToPath(new URL('../.agents/skills/', import.meta.url));
+  const names = (await fs.readdir(source, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('opsx-chart-')).map((entry) => entry.name).sort();
+  const target = path.join(projectRoot, '.agents', 'skills');
+  await fs.mkdir(target, { recursive: true });
+  const installed: string[] = [];
+  const alreadyPresent: string[] = [];
+  for (const name of names) {
+    const destination = path.join(target, name);
+    try { await fs.lstat(destination); alreadyPresent.push(name); continue; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    await fs.cp(path.join(source, name), destination, { recursive: true, force: false, errorOnExist: true });
+    installed.push(name);
+  }
+  return { installed, alreadyPresent };
+}
+
 async function main(): Promise<void> {
   if (!command || command === 'help' || command === '--help') {
     process.stdout.write(`OPSX Chart CLI\n\n` +
+      `  init [--root PATH] [--skills]             Create openspec/graph; optionally install Chart skills\n` +
       `  snapshot [--root PATH]                    Current and proposed OpenSpec content\n` +
       `  inspect --capability ID [--flow ID] [--change ID] [--root PATH]\n` +
       `  validate [--change ID] [--root PATH]      Graph and optional OpenSpec validation\n` +
@@ -35,6 +55,11 @@ async function main(): Promise<void> {
       `  preflight --change ID [--archived] [--root PATH]\n` +
       `  reconcile --change ID [--archived] [--root PATH]\n` +
       `  scenario-template --capability ID --requirement NAME --scenario NAME [--change ID] [--root PATH]\n`);
+    return;
+  }
+  if (command === 'init') {
+    const graph = await initGraphWorkspace(root);
+    print({ graph, skills: option('skills') === 'true' ? await installProjectSkills(graph.root) : null });
     return;
   }
   if (command === 'snapshot') { print(await projectSnapshot(root)); return; }

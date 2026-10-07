@@ -6,7 +6,7 @@ import {
   FlowSchema, RelationsSchema, emptyFlow, emptyRelations, isLayoutOnly,
   validateFlow, validateRelations, type Diagnostic, type Flow, type Relations,
 } from '../shared/model.js';
-import { projectSnapshot, scenarioLookup, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
+import { projectSnapshot, resolveProjectRoot, scenarioLookup, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
 
 const safeId = /^[a-z0-9-]+$/;
 const safeCapability = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
@@ -29,6 +29,35 @@ function changeRoot(root: string, change: string, archived = false): string {
 
 export function graphPath(root: string, relative: string, change?: string, archived = false): string {
   return path.join(change ? path.join(changeRoot(root, change, archived), 'graph') : graphRoot(root), relative);
+}
+
+export async function graphWorkspaceStatus(root: string): Promise<{ path: string; initialized: boolean }> {
+  const file = graphPath(root, 'relations.yaml');
+  try { await fs.access(file); return { path: graphRoot(root), initialized: true }; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { path: graphRoot(root), initialized: false }; throw error; }
+}
+
+export async function initGraphWorkspace(directory: string): Promise<{ root: string; path: string; created: boolean }> {
+  const root = await resolveProjectRoot(directory);
+  const file = graphPath(root, 'relations.yaml');
+  const existing = await readText(file);
+  if (existing !== null) RelationsSchema.parse(YAML.parse(existing));
+  let created = false;
+  if (existing === null) {
+    await fs.mkdir(graphRoot(root), { recursive: true });
+    try { await fs.writeFile(file, YAML.stringify(emptyRelations()), { flag: 'wx' }); created = true; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      RelationsSchema.parse(YAML.parse(await fs.readFile(file, 'utf8')));
+    }
+  }
+  const flows = graphPath(root, 'flows');
+  await fs.mkdir(flows, { recursive: true });
+  if ((await fs.readdir(flows)).length === 0) {
+    try { await fs.writeFile(path.join(flows, '.gitkeep'), '', { flag: 'wx' }); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+  }
+  return { root, path: graphRoot(root), created };
 }
 
 async function readText(file: string): Promise<string | null> {

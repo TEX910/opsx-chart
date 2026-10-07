@@ -10,6 +10,7 @@ type FlowSummary = { capability: string; id: string; name: string; scope: 'curre
 type Suggestion = { source: string; target: string; change: string };
 type PendingDraft = { change: string; archived: boolean; files: string[] };
 type DeltaFile = { path: string; content: string; digest: string | null };
+type GraphWorkspace = { path: string; initialized: boolean };
 
 const query = (values: Record<string, string | undefined>) => new URLSearchParams(Object.entries(values).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString();
 
@@ -22,6 +23,7 @@ export function App() {
   const [search, setSearch] = useState('');
   const [focus, setFocus] = useState(false);
   const [relations, setRelations] = useState<Relations>({ version: 1, edges: [] });
+  const [graphWorkspace, setGraphWorkspace] = useState<GraphWorkspace | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [relationshipTarget, setRelationshipTarget] = useState('');
   const [relationshipType, setRelationshipType] = useState<Relation['type']>('depends-on');
@@ -54,10 +56,10 @@ export function App() {
   const selectedFlowSummary = flowChoices.find((item) => `${item.scope}:${item.id}` === flowSelection);
 
   async function loadSecondary(): Promise<void> {
-    const [nextRelations, nextSuggestions, nextPending] = await Promise.all([
-      api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'),
+    const [nextRelations, nextSuggestions, nextPending, nextGraphWorkspace] = await Promise.all([
+      api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'), api<GraphWorkspace>('/graph-workspace'),
     ]);
-    setRelations(nextRelations); setSuggestions(nextSuggestions); setPending(nextPending);
+    setRelations(nextRelations); setSuggestions(nextSuggestions); setPending(nextPending); setGraphWorkspace(nextGraphWorkspace);
   }
 
   async function refresh(external = false): Promise<void> {
@@ -117,10 +119,22 @@ export function App() {
     setBusy(true); setError(''); setMessage('');
     try {
       const next = await post<ProjectSnapshot>('/project', { path: projectInput });
+      setGraphWorkspace(null);
       setProject(next); setSelectedCapability(next.current[0]?.id ?? next.proposed[0]?.id ?? null);
       setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false);
       await loadSecondary();
       setMessage(`Progetto aperto: ${next.root}`);
+    } catch (failure) { setError(String(failure)); }
+    finally { setBusy(false); }
+  }
+
+  async function initializeGraphWorkspace(): Promise<void> {
+    setBusy(true);
+    try {
+      const result = await post<{ root: string; path: string; created: boolean }>('/graph-workspace', {});
+      setGraphWorkspace({ path: result.path, initialized: true });
+      setMessage(result.created ? `Spazio grafi creato: ${result.path}` : `Spazio grafi già presente: ${result.path}`);
+      setError('');
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
   }
@@ -230,6 +244,7 @@ export function App() {
       <div className="workspace">
         <aside className="sidebar">
           <div className="sidebar-header"><span className="eyebrow">PROGETTO</span><strong title={project.root}>{project.root.split('/').pop()}</strong><small>{project.current.length} spec attuali · {project.proposed.length} delta</small></div>
+          {graphWorkspace?.initialized === false ? <div className="graph-setup"><strong>Spazio grafi non inizializzato</strong><small>Crea <code>openspec/graph/</code> per salvare relazioni e flussi nel progetto.</small><button onClick={() => void initializeGraphWorkspace()} disabled={busy}>Attiva spazio grafi</button></div> : null}
           <div className="sidebar-controls"><input placeholder="Cerca spec…" value={search} onChange={(event) => setSearch(event.target.value)} /><label className="checkline"><input type="checkbox" checked={focus} onChange={(event) => setFocus(event.target.checked)} /> Solo vicine</label></div>
           <div className="capability-list">{capabilityIds.filter((id) => id.toLowerCase().includes(search.toLowerCase())).map((id) => <button key={id} className={selectedCapability === id ? 'active' : ''} onClick={() => selectCapability(id)}><span className="cap-dot" />{id}{!project.current.some((item) => item.id === id) ? <em>nuova</em> : null}</button>)}</div>
           <div className="sidebar-footer"><label>Change attivo<select value={selectedChange} onChange={(event) => { if (dirtyFlow || deltaDirty) { if (!window.confirm('Ci sono modifiche non salvate. Cambiare change?')) return; } setSelectedChange(event.target.value); setDirtyFlow(false); setDeltaDirty(false); }}><option value="">Nessuno</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Le modifiche al comportamento richiedono un change.</small></div>

@@ -54,6 +54,19 @@ npm start
 
 Apri **http://127.0.0.1:4317**, indica il percorso di un progetto locale con una directory `openspec/` e premi **Apri progetto**. All'avvio l'app prova prima a usare la directory corrente.
 
+### Attiva OPSX Chart in un altro progetto OpenSpec
+
+Il progetto deve avere già OpenSpec. Dopo `npm run build` nella repository OPSX Chart, rendi disponibile la CLI sulla tua macchina e inizializza il progetto destinatario:
+
+```sh
+npm link
+opsx-chart init --root /percorso/al/progetto --skills
+```
+
+Il comando crea `openspec/graph/relations.yaml` e lo spazio `openspec/graph/flows/`, poi copia le skill `opsx-chart-*` mancanti in `.agents/skills/` del progetto. Puoi ripeterlo: lascia intatti grafi e skill già presenti. Le skill di fase Chart richiamano le skill OpenSpec, che devono essere disponibili tramite la normale configurazione OpenSpec del progetto. Apri il progetto in Codex per usare le nuove skill e in OPSX Chart per vedere la mappa e i flussi.
+
+Se vuoi aggiungere solo lo spazio dei grafi, apri il progetto nell'app e premi **Attiva spazio grafi**, oppure esegui `opsx-chart init --root /percorso/al/progetto` senza `--skills`.
+
 ### Prova la demo
 
 Esegui `npm run demo` da questa repository e apri **http://127.0.0.1:4317**. La demo carica automaticamente il progetto `examples/demo-project/`, con due capability collegate, i flussi di accesso e notifica e il change `adjust-login`. Seleziona **authentication → Flusso** e confronta il flusso attuale con quello in bozza. Le modifiche che salvi nella demo vengono scritte nei file di `examples/demo-project/`.
@@ -64,13 +77,16 @@ Le skill usano lo stesso change OpenSpec e lo stesso elenco di task, aggiungendo
 
 | Fase | Skill |
 | --- | --- |
+| Preparare un progetto OpenSpec | `$opsx-chart-init` |
 | Esplorare | `$opsx-chart-explore` |
 | Proporre un change | `$opsx-chart-propose` |
 | Aggiornare il piano | `$opsx-chart-update` |
 | Implementare | `$opsx-chart-apply` |
 | Portare WHEN/THEN dal grafo alla spec | `$opsx-chart-graph-to-spec` |
+| Proporre aggiornamenti al grafo da una spec modificata | `$opsx-chart-spec-to-graph` |
 | Sincronizzare spec e grafi | `$opsx-chart-sync` |
 | Archiviare | `$opsx-chart-archive` |
+| Verificare o recuperare bozze rimaste da riconciliare | `$opsx-chart-reconcile` |
 
 Le skill si trovano in `.agents/skills/`.
 

@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  deleteFlow, listFlows, loadFlow, loadRelations, pendingDrafts,
+  deleteFlow, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts,
   preflightReconciliation, reconcileGraph, saveFlow, saveRelations, validateGraph, digest,
 } from './graph-store.js';
 import { projectSnapshot, resolveProjectRoot, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
@@ -71,6 +71,8 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
     listeners.add(res);
     req.on('close', () => listeners.delete(res));
   });
+  app.get('/api/graph-workspace', route(async (_req, res) => res.json(await graphWorkspaceStatus(currentRoot()))));
+  app.post('/api/graph-workspace', route(async (_req, res) => res.json(await initGraphWorkspace(currentRoot()))));
   app.get('/api/relations', route(async (_req, res) => res.json(await loadRelations(currentRoot()))));
   app.put('/api/relations', route(async (req, res) => {
     const result = await saveRelations(currentRoot(), req.body, await fresh());
