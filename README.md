@@ -30,7 +30,7 @@ A **draft flow** is the modified version of *one graph* inside that change. Edit
 4. Click **Show graph**, select an **Outcome**, and enter its **THEN**. You can also view and copy an existing THEN from the linked scenario.
 5. Under **Create a new case**, choose a requirement and add the path's connections in order from Event to Outcome. Complete the WHEN and THEN fields, click **Create case in flow**, then **Save flow**.
 
-You can create a case before its Markdown scenario exists. It will show as *pending reconciliation*. The `$opsx-chart-graph-to-spec` skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After reviewing both, `$opsx-chart-sync` synchronizes the spec and reconciles the graph; `$opsx-chart-archive` closes the change.
+You can create a case before its Markdown scenario exists. It will show as *pending reconciliation*. The `opsx-chart-graph-to-spec` skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After reviewing both, `opsx-chart-sync` synchronizes the spec and reconciles the graph; `opsx-chart-archive` closes the change.
 
 ## Run locally
 
@@ -61,7 +61,7 @@ npm link
 opsx-chart init --root /path/to/project --skills
 ```
 
-This creates `openspec/graph/relations.yaml` and `openspec/graph/flows/`, then copies missing `opsx-chart-*` skills into the project's `.agents/skills/`. Repeating the command preserves existing graphs and skill directories. Chart phase skills call the corresponding OpenSpec skills, which must be available through the project's normal OpenSpec setup. Open the target project in Codex to use its skills and in OPSX Chart to view its map and flows.
+This creates `openspec/graph/relations.yaml` and `openspec/graph/flows/`, then copies missing `opsx-chart-*` skills into the project's `.agents/skills/`. Repeating the command preserves existing graphs and skill directories. Chart phase skills call the corresponding OpenSpec skills, which must be available through the project's normal OpenSpec setup. Open the target project with a skill-compatible assistant to use its skills and in OPSX Chart to view its map and flows.
 
 To add only the graph workspace, click **Initialize graph workspace** in the app or run `opsx-chart init --root /path/to/project` without `--skills`. The app's **Help** popup also contains these setup steps and a skill summary.
 
@@ -75,18 +75,18 @@ Chart skills use the same OpenSpec change and task list while adding graph work 
 
 | Phase | Skill |
 | --- | --- |
-| Set up an OpenSpec project | `$opsx-chart-init` |
-| Explore | `$opsx-chart-explore` |
-| Propose a change | `$opsx-chart-propose` |
-| Update a plan | `$opsx-chart-update` |
-| Implement | `$opsx-chart-apply` |
-| Carry graph WHEN/THEN into the spec | `$opsx-chart-graph-to-spec` |
-| Propose graph updates from a changed spec | `$opsx-chart-spec-to-graph` |
-| Synchronize specs and graphs | `$opsx-chart-sync` |
-| Archive | `$opsx-chart-archive` |
-| Inspect or recover unreconciled drafts | `$opsx-chart-reconcile` |
+| Set up an OpenSpec project | `opsx-chart-init` |
+| Explore | `opsx-chart-explore` |
+| Propose a change | `opsx-chart-propose` |
+| Update a plan | `opsx-chart-update` |
+| Implement | `opsx-chart-apply` |
+| Carry graph WHEN/THEN into the spec | `opsx-chart-graph-to-spec` |
+| Propose graph updates from a changed spec | `opsx-chart-spec-to-graph` |
+| Synchronize specs and graphs | `opsx-chart-sync` |
+| Archive | `opsx-chart-archive` |
+| Inspect or recover unreconciled drafts | `opsx-chart-reconcile` |
 
-Skill files live in `.agents/skills/`.
+Skill files live in `.agents/skills/`. Ask a skill-compatible assistant to use one by its name; invocation syntax varies by assistant.
 
 ## Contribute
 

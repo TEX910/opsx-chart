@@ -246,7 +246,7 @@ export function App() {
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
         <pre><code>opsx-chart init --root /path/to/project --skills</code></pre>
-        <p>This creates <code>openspec/graph/</code> and copies missing <code>opsx-chart-*</code> skills into the project's <code>.agents/skills/</code>. Existing graph files and skill directories are preserved. Open the target project in Codex to use the skills and in Chart to view its graphs.</p>
+        <p>This creates <code>openspec/graph/</code> and copies missing <code>opsx-chart-*</code> skills into the project's <code>.agents/skills/</code>. Existing graph files and skill directories are preserved. Open the target project with a skill-compatible assistant to use the skills and in Chart to view its graphs.</p>
         <p>For graphs only, omit <code>--skills</code> or use <strong>Initialize graph workspace</strong> in the project sidebar.</p>
         <h3>Skills at a glance</h3>
         <dl className="help-skills">
@@ -255,7 +255,7 @@ export function App() {
           <div><dt><code>graph-to-spec</code> · <code>spec-to-graph</code></dt><dd>Carry WHEN/THEN between graph nodes and Markdown scenarios.</dd></div>
           <div><dt><code>sync</code> · <code>archive</code> · <code>reconcile</code></dt><dd>Promote, finish, or recover graph drafts alongside OpenSpec changes.</dd></div>
         </dl>
-        <p>Invoke a skill in Codex with its full name, such as <code>$opsx-chart-propose</code>.</p>
+        <p>Ask your assistant to use a skill by name, such as <code>opsx-chart-propose</code>. Invocation syntax depends on the assistant.</p>
       </div>
     </dialog>
     {error ? <div className="banner error" role="alert">{error}<button onClick={() => setError('')}>×</button></div> : null}
