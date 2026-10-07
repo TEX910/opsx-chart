@@ -39,6 +39,7 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
   const [edgeToAppend, setEdgeToAppend] = useState('');
   const [connectionTarget, setConnectionTarget] = useState('');
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [editorTab, setEditorTab] = useState<'element' | 'cases'>('element');
   const flowInstance = useRef<ReactFlowInstance | null>(null);
 
   const scenarios = useMemo(() => [...project.current, ...project.proposed.filter((item) => item.change === change)]
@@ -138,6 +139,9 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
 
   const selectedNodeValue = flow.nodes.find((item) => item.id === selectedNode);
   const selectedEdgeValue = flow.edges.find((item) => item.id === selectedEdge);
+  const selectedSummary = selectedNodeValue ? `Nodo: ${selectedNodeValue.label}` : selectedEdgeValue
+    ? `Collegamento: ${flow.nodes.find((item) => item.id === selectedEdgeValue.source)?.label ?? selectedEdgeValue.source} → ${flow.nodes.find((item) => item.id === selectedEdgeValue.target)?.label ?? selectedEdgeValue.target}`
+    : 'Seleziona un nodo o un collegamento nel grafo.';
 
   return <div className="flow-editor">
     <div className="flow-toolbar">
@@ -159,10 +163,19 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
         <Background color="#d5dee0" gap={22} size={1} /><Controls /><MiniMap pannable zoomable nodeColor={(node) => nodeColors[(node.data as { kind: FlowNode['type'] }).kind]} />
       </ReactFlow>
     </div>
-    {detailsExpanded ? <div className="flow-editor-backdrop" aria-hidden="true" onClick={() => setDetailsExpanded(false)} /> : null}
-    <div className={`flow-bottom ${detailsExpanded ? 'expanded' : ''}`} role={detailsExpanded ? 'dialog' : undefined} aria-modal={detailsExpanded ? true : undefined} aria-label={detailsExpanded ? 'Modifica nodi e percorsi' : undefined}>
-      <div className="flow-panel-header"><strong>Modifica nodi e percorsi</strong><button className="quiet" onClick={() => setDetailsExpanded((value) => !value)}>{detailsExpanded ? 'Chiudi editor' : 'Apri editor'}</button></div>
-      <section>
+    <div className="flow-editor-summary">
+      <div><strong>Elemento selezionato</strong><span>{selectedSummary}</span></div>
+      <button className="quiet" onClick={() => { setEditorTab('element'); setDetailsExpanded(true); }}>Apri editor</button>
+    </div>
+    {detailsExpanded ? <>
+      <div className="flow-editor-backdrop" aria-hidden="true" onClick={() => setDetailsExpanded(false)} />
+      <div className="flow-bottom expanded" role="dialog" aria-modal="true" aria-label="Modifica nodi e percorsi">
+        <div className="flow-panel-header"><strong>Modifica nodi e percorsi</strong><button className="quiet" onClick={() => setDetailsExpanded(false)}>Chiudi editor</button></div>
+        <div className="flow-panel-tabs" role="tablist" aria-label="Sezioni dell’editor">
+          <button id="flow-element-tab" role="tab" aria-selected={editorTab === 'element'} className={editorTab === 'element' ? 'active' : ''} onClick={() => setEditorTab('element')}>Elemento selezionato</button>
+          <button id="flow-cases-tab" role="tab" aria-selected={editorTab === 'cases'} className={editorTab === 'cases' ? 'active' : ''} onClick={() => setEditorTab('cases')}>Percorsi collegati a scenari</button>
+        </div>
+        {editorTab === 'element' ? <section role="tabpanel" aria-labelledby="flow-element-tab">
         <h3>Elemento selezionato</h3>
         {selectedNodeValue ? <>
           <label>Etichetta <input value={selectedNodeValue.label} onChange={(event) => onChange({ ...flow, nodes: flow.nodes.map((item) => item.id === selectedNode ? { ...item, label: event.target.value } : item) })} /></label>
@@ -176,8 +189,7 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
           <label>Etichetta ramo <input value={selectedEdgeValue.label ?? ''} onChange={(event) => onChange({ ...flow, edges: flow.edges.map((item) => item.id === selectedEdge ? { ...item, label: event.target.value } : item) })} /></label>
           <button className="quiet danger" onClick={() => { if (selectedEdge) changeEdges([{ type: 'remove', id: selectedEdge }]); setSelectedEdge(null); }}>Rimuovi collegamento</button>
         </> : <p className="muted">Seleziona un nodo o un collegamento. Trascina tra i punti laterali dei nodi per unirli.</p>}
-      </section>
-      <section>
+        </section> : <section role="tabpanel" aria-labelledby="flow-cases-tab">
         <h3>Percorsi collegati a scenari</h3>
         <div className="case-list">{flow.cases.map((item) => <button key={item.id} className={`case-item ${selectedCase === item.id ? 'active' : ''}`} onClick={() => onSelectCase(item.id)}>
           <strong>{item.name}</strong><small>{item.scenario.requirement} / {item.scenario.scenario}</small>
@@ -195,7 +207,8 @@ export function FlowEditor({ flow, project, change, selectedCase, onSelectCase, 
           <small className="muted">{caseEdges.length ? `${caseEdges.length} collegamenti nel percorso` : 'Aggiungi i collegamenti nell’ordine del percorso.'}</small>
           <button onClick={addCase} disabled={!scenarios.length || !caseEdges.length || !caseName.trim()}>Collega percorso e scenario</button>
         </div>
-      </section>
-    </div>
+        </section>}
+      </div>
+    </> : null}
   </div>;
 }
