@@ -1,26 +1,48 @@
 # OPSX Chart
 
-**See how an OpenSpec project fits together, then edit each feature as a visual flow.** OPSX Chart is a local companion for OpenSpec projects. Each capability on the map represents one OpenSpec spec. The map shows the spec's purpose and connections; the flow lets you write behavior on decision and outcome nodes.
+**Esplora le specifiche OpenSpec come una mappa e descrivi il comportamento come un grafo.** OPSX Chart è un'applicazione locale che si affianca a OpenSpec. Ogni capability nella mappa corrisponde a **una spec**: la mappa mostra come le spec sono collegate, mentre i flussi mostrano le casistiche di una singola spec.
 
-The graph stores behavior drafts. An OPSX Chart skill reconciles them into the OpenSpec Markdown contract. OPSX Chart adds visual files to the project; it does not require a fork or migration.
+Il grafo è il luogo in cui puoi preparare e modificare il comportamento. Una skill porta i WHEN/THEN scritti nel grafo nel delta Markdown del change, che puoi rivedere prima di sincronizzare la spec OpenSpec. OPSX Chart non richiede un fork di OpenSpec.
 
-## What you can do
+## I concetti principali
 
-- Browse a map of capabilities and their declared relationships.
-- Open a capability to see its spec description and connections, then inspect its scenarios inside the flow editor.
-- Draw events, actions, decisions, and outcomes. Write a WHEN on each decision branch and a THEN on its outcome, then create a case from the path.
-- Work on proposed behavior inside an existing OpenSpec change and see validation problems before completing it.
-- Use the OPSX Chart skills to move through the OpenSpec workflow with one change and one task list.
+| Nell'interfaccia | Che cosa significa |
+| --- | --- |
+| **Capability** | Una spec OpenSpec. I suoi dettagli descrivono la spec e i suoi collegamenti con le altre capability; non sono l'elenco dei WHEN/THEN. |
+| **Flusso** | Il grafo del comportamento di una capability. Può contenere eventi, azioni, decisioni ed esiti. Una capability può avere più flussi. |
+| **WHEN** | La condizione di un ramo che esce da un nodo **Decisione**. Se una decisione ha due rami, ciascuno può avere il proprio WHEN. |
+| **THEN** | Il risultato descritto nel nodo **Esito** raggiunto dal percorso. |
+| **Casistica** | Un percorso completo dall'**Evento** all'**Esito**. Usa i WHEN dei rami attraversati e il THEN dell'esito, ed è destinato a uno scenario di un requisito OpenSpec. |
 
-## Get started
+Per esempio, nel flusso di accesso il ramo «Valido» della decisione *Credenziali valide?* può contenere `WHEN un membro invia credenziali valide`; il nodo *Avvia sessione* può contenere `THEN il sistema avvia una sessione`. Se il percorso attraversa più decisioni, la skill scrive la prima condizione come `WHEN` e le successive come `AND` nello scenario Markdown.
 
-You need Node.js 22 or newer and the [OpenSpec CLI](https://github.com/Fission-AI/OpenSpec) version 1.14.0 or newer. Install OpenSpec if you have not already:
+### Change attivo e flusso in bozza
+
+Il **change attivo** è il lavoro OpenSpec che hai selezionato, per esempio `adjust-login`. Raccoglie la proposta, i task, gli eventuali delta delle spec e le bozze dei grafi modificati.
+
+Il **flusso in bozza** è la versione modificata di *un singolo grafo* dentro quel change. Quando cambi un WHEN, un THEN, un nodo o un collegamento e premi **Salva flusso**, salvi la bozza del grafo nel change. Il flusso **attuale** resta quello consolidato finché la bozza non viene riconciliata. Un change può contenere più flussi in bozza.
+
+**In breve:** il change raccoglie il lavoro complessivo; la bozza è uno dei flussi modificati in quel lavoro.
+
+## Come modificare una casistica
+
+1. Seleziona una capability e apri **Flusso**. Nella colonna di destra trovi la spec associata e il link al suo documento Markdown.
+2. Seleziona un **Change attivo** prima di modificare il comportamento. Apri il flusso in bozza, oppure modifica quello attuale per creare una bozza nel change.
+3. Seleziona una **Decisione** nel grafo e premi **Collassa grafo e modifica**. In **WHEN per ciascun ramo** scrivi la condizione del ramo. Se esiste già testo nello scenario OpenSpec collegato, lo vedi accanto al campo vuoto e puoi premere **Usa questo WHEN** per copiarlo nel nodo.
+4. Premi **Mostra grafo**, seleziona un **Esito** e scrivi il risultato in **THEN di questo esito**. Anche qui puoi vedere e copiare un THEN già presente nello scenario collegato.
+5. In **Crea una nuova casistica**, scegli il requisito e aggiungi in ordine i collegamenti dall'Evento all'Esito. Puoi completare i WHEN e il THEN anche in questa form. Premi **Crea casistica nel flusso**, poi **Salva flusso**.
+
+Puoi creare una casistica **prima** che esista il relativo scenario Markdown: comparirà come *da riconciliare*. La skill `$opsx-chart-graph-to-spec` legge i descrittori dei nodi e scrive o aggiorna lo scenario nel delta della spec del change. Salvare il grafo da solo non modifica il Markdown. Dopo aver rivisto entrambi, `$opsx-chart-sync` sincronizza la spec e riconcilia il grafo; `$opsx-chart-archive` chiude il change.
+
+## Avvio locale
+
+Servono Node.js 22 o successivo e la [CLI di OpenSpec](https://github.com/Fission-AI/OpenSpec) 1.14.0 o successiva. Se OpenSpec non è installato:
 
 ```sh
 npm install -g @fission-ai/openspec@latest
 ```
 
-Clone this repository, then run:
+Clona la repository e avvia l'app:
 
 ```sh
 git clone https://github.com/TEX910/opsx-chart.git
@@ -30,31 +52,28 @@ npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Enter the path to a local project containing an `openspec/` directory and select **Apri progetto**. At startup, OPSX Chart first tries the current working directory.
+Apri **http://127.0.0.1:4317**, indica il percorso di un progetto locale con una directory `openspec/` e premi **Apri progetto**. All'avvio l'app prova prima a usare la directory corrente.
 
-### Try the included demo
+### Prova la demo
 
-From this repository, run `npm run demo` and open **http://127.0.0.1:4317**. The demo opens automatically with two connected capabilities, a current sign-in flow, an email flow, and a proposed locked-account branch in the `adjust-login` change. Select **authentication → Flusso**, then switch between the current and draft flow to compare them. The demo is a local OpenSpec project under `examples/demo-project/`, so edits to it are saved there.
+Esegui `npm run demo` da questa repository e apri **http://127.0.0.1:4317**. La demo carica automaticamente il progetto `examples/demo-project/`, con due capability collegate, i flussi di accesso e notifica e il change `adjust-login`. Seleziona **authentication → Flusso** e confronta il flusso attuale con quello in bozza. Le modifiche che salvi nella demo vengono scritte nei file di `examples/demo-project/`.
 
-## Work with a change
+## Skill disponibili
 
-1. Select a capability on the map and open **Flusso** to inspect its diagram and linked scenarios.
-2. Select an active OpenSpec change before editing behavior. Click a node, then choose **Collassa grafo e modifica** to edit its details. Write a WHEN for each outgoing branch of a **Decisione** and a THEN on each **Esito**. Existing text from linked OpenSpec scenarios appears beside an empty descriptor, where you can copy it into the node. Finish with **Salva flusso** to save the graph draft under the change.
-3. In **Crea una nuova casistica**, choose the requirement and add connections from an **Evento** to an **Esito**. You can write the WHEN and THEN there as well, then click **Crea casistica nel flusso**. The OpenSpec scenario can be created afterward with `$opsx-chart-graph-to-spec`.
-4. Review the graph behavior and generated spec delta together. When the change is ready, sync its specification and graph drafts, then archive it. The Chart skills guide these phases from the same change.
+Le skill usano lo stesso change OpenSpec e lo stesso elenco di task, aggiungendo il lavoro sul grafo al normale flusso di sviluppo.
 
-| Phase | Skill |
+| Fase | Skill |
 | --- | --- |
-| Explore | `$opsx-chart-explore` |
-| Propose | `$opsx-chart-propose` |
-| Revise the plan | `$opsx-chart-update` |
-| Implement | `$opsx-chart-apply` |
-| Write graph behavior into the spec delta | `$opsx-chart-graph-to-spec` |
-| Sync specs and graphs | `$opsx-chart-sync` |
-| Archive | `$opsx-chart-archive` |
+| Esplorare | `$opsx-chart-explore` |
+| Proporre un change | `$opsx-chart-propose` |
+| Aggiornare il piano | `$opsx-chart-update` |
+| Implementare | `$opsx-chart-apply` |
+| Portare WHEN/THEN dal grafo alla spec | `$opsx-chart-graph-to-spec` |
+| Sincronizzare spec e grafi | `$opsx-chart-sync` |
+| Archiviare | `$opsx-chart-archive` |
 
-The skills are included in this repository under `.agents/skills/`. They use OpenSpec's artifacts and tasks while adding the graph work to the same change.
+Le skill si trovano in `.agents/skills/`.
 
-## Contributing
+## Contribuire
 
-For development setup, file formats, CLI commands, validation, and the reconciliation process, see the [README for contributors](docs/README-CONTRIBUTORS.md).
+Per setup di sviluppo, formato dei file, comandi CLI e dettagli della riconciliazione, leggi il [README per contributor](docs/README-CONTRIBUTORS.md).
