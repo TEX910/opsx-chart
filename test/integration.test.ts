@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { emptyFlow, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
+import { emptyFlow, flowPaths, flowWouldCycle, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
 import { graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations } from '../src/server/graph-store.js';
 
@@ -146,6 +146,28 @@ describe('OpenSpec project and graph coordination', () => {
     expect(pending.find((item) => item.code === 'scenario-awaiting-sync')?.severity).toBe('warning');
     const promoted = { ...flow, cases: flow.cases.map((item) => ({ ...item, scenario: { ...item.scenario, scope: 'current' as const } })) };
     expect(validateFlow(promoted, () => ({ exists: false })).find((item) => item.code === 'missing-scenario')?.severity).toBe('error');
+  });
+
+  it('discovers a route through two decisions and emits ordered WHEN and AND conditions', () => {
+    const flow = {
+      ...emptyFlow('authentication', 'two-checks'),
+      nodes: [
+        { id: 'start', type: 'event' as const, label: 'Sign in', position: { x: 0, y: 0 } },
+        { id: 'credentials', type: 'decision' as const, label: 'Credentials valid?', whens: { valid: 'credentials are valid' }, position: { x: 200, y: 0 } },
+        { id: 'account', type: 'decision' as const, label: 'Account active?', whens: { active: 'the account is active' }, position: { x: 400, y: 0 } },
+        { id: 'session', type: 'outcome' as const, label: 'Start session', then: 'the system starts a session', position: { x: 600, y: 0 } },
+      ],
+      edges: [
+        { id: 'begin', source: 'start', target: 'credentials' },
+        { id: 'valid', source: 'credentials', target: 'account' },
+        { id: 'active', source: 'account', target: 'session' },
+      ],
+    };
+    expect(flowPaths(flow)).toEqual([['begin', 'valid', 'active']]);
+    expect(pathBehavior(flow, flowPaths(flow)[0])).toEqual({ whens: ['credentials are valid', 'the account is active'], then: 'the system starts a session', complete: true });
+    expect(validateFlow(flow).some((item) => item.code === 'unlabeled-branch')).toBe(false);
+    expect(flowWouldCycle(flow, 'account', 'credentials')).toBe(true);
+    expect(validateFlow({ ...flow, edges: [...flow.edges, { id: 'back', source: 'account', target: 'credentials' }] }).some((item) => item.code === 'flow-cycle')).toBe(true);
   });
 
   it('does not accept an invalid OpenSpec validation payload as success', async () => {

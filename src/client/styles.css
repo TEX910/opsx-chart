@@ -50,6 +50,18 @@
 .flow-node-behavior h5{margin:0;font-size:12px}
 .flow-node-behavior label{margin:0}
 .flow-node-behavior textarea{width:100%;resize:vertical;min-height:58px}
+.flow-when-row{display:grid;gap:9px;padding:13px;border:1px solid #dce8e4;border-radius:9px;background:#f8fbfa}
+.flow-when-row label{display:grid;gap:5px}
+.flow-when-heading,.flow-simple-connection{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.flow-when-heading strong{color:#9a6328;font-size:12px}
+.flow-when-heading button,.flow-simple-connection button{font-size:11px;padding:6px 9px}
+.flow-simple-connection{padding:7px 0;border-bottom:1px solid #e6eeeb;font-size:12px}
+.flow-route-options{display:grid;gap:7px;margin:12px 0 16px}
+.flow-route-option{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #dce8e4;border-radius:8px;background:#f8fbfa;cursor:pointer;font-size:12px;line-height:1.45}
+.flow-route-option.active{border-color:#c5843c;background:#fff8ed}
+.flow-route-option:has(input:disabled){opacity:.65;cursor:default}
+.flow-route-option input{flex:none;margin:3px 0 0}
+.flow-route-option small{display:block;color:#668385}
 .flow-linked-source{display:grid;gap:8px;margin:8px 0 4px;padding:11px;border:1px solid #dce8e4;border-radius:8px;background:#f6faf8}
 .flow-linked-source strong{font-size:11px;color:#315e61}
 .flow-linked-source>div{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}

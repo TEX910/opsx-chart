@@ -92,6 +92,36 @@ export function pathBehavior(flow: Flow, edgeIds: string[]): { whens: string[]; 
   return { whens, then, complete: !missingWhen && whens.length > 0 && !!then };
 }
 
+/** All acyclic routes from an Event to an Outcome, in graph order. */
+export function flowPaths(flow: Flow): string[][] {
+  const nodes = new Map(flow.nodes.map((node) => [node.id, node]));
+  const outgoing = new Map(flow.nodes.map((node) => [node.id, flow.edges.filter((edge) => edge.source === node.id)]));
+  const paths: string[][] = [];
+  function visit(nodeId: string, visited: Set<string>, edgeIds: string[]): void {
+    if (paths.length >= 100 || visited.has(nodeId)) return;
+    if (nodes.get(nodeId)?.type === 'outcome') { if (edgeIds.length) paths.push(edgeIds); return; }
+    const nextVisited = new Set([...visited, nodeId]);
+    for (const edge of outgoing.get(nodeId) ?? []) if (nodes.has(edge.target)) visit(edge.target, nextVisited, [...edgeIds, edge.id]);
+  }
+  const incoming = new Set(flow.edges.map((edge) => edge.target));
+  for (const node of flow.nodes) if (node.type === 'event' && !incoming.has(node.id)) visit(node.id, new Set(), []);
+  return paths;
+}
+
+export function flowWouldCycle(flow: Flow, source: string, target: string, ignoredEdgeId?: string): boolean {
+  if (source === target) return true;
+  const visited = new Set<string>();
+  const queue = [target];
+  while (queue.length) {
+    const node = queue.shift()!;
+    if (node === source) return true;
+    if (visited.has(node)) continue;
+    visited.add(node);
+    for (const edge of flow.edges) if (edge.id !== ignoredEdgeId && edge.source === node) queue.push(edge.target);
+  }
+  return false;
+}
+
 export type Diagnostic = {
   severity: 'error' | 'warning';
   code: string;
@@ -176,7 +206,9 @@ export function validateFlow(flow: Flow, lookup?: ScenarioLookup): Diagnostic[] 
   }
   for (const edge of flow.edges) {
     if (!nodes.has(edge.source) || !nodes.has(edge.target)) diagnostics.push({ severity: 'error', code: 'missing-node', message: `Edge ${edge.id} has a missing endpoint`, target: edge.id });
-    if (nodes.get(edge.source)?.type === 'decision' && !edge.label?.trim()) diagnostics.push({ severity: 'error', code: 'unlabeled-branch', message: `Decision branch ${edge.id} needs a label`, target: edge.id });
+    if (nodes.get(edge.source)?.type === 'outcome') diagnostics.push({ severity: 'error', code: 'outcome-has-exit', message: `Outcome ${edge.source} cannot have an outgoing connection`, target: edge.id });
+    if (nodes.get(edge.source)?.type === 'decision' && !['decision', 'outcome'].includes(nodes.get(edge.target)?.type ?? '')) diagnostics.push({ severity: 'error', code: 'invalid-decision-target', message: `Decision branch ${edge.id} must lead to a Decision or Outcome`, target: edge.id });
+    if (flowWouldCycle(flow, edge.source, edge.target, edge.id)) diagnostics.push({ severity: 'error', code: 'flow-cycle', message: `Connection ${edge.id} creates a cycle`, target: edge.id });
   }
   for (const node of flow.nodes) {
     if (node.type === 'decision') for (const edge of flow.edges.filter((item) => item.source === node.id)) {

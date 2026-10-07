@@ -28,9 +28,9 @@ A **draft flow** is the modified version of *one graph* inside that change. Edit
 
 1. Select a capability and open **Flow**. The right column shows its associated spec and a link to the Markdown source.
 2. Select an **Active change** before editing behavior. Open a draft flow, or edit the current flow to create a draft in the change.
-3. Select a **Decision** node and click **Collapse graph to edit**. Enter a condition under **WHEN for each branch**. If the linked OpenSpec scenario already has text, you can view it and copy it with **Use this WHEN**.
-4. Click **Show graph**, select an **Outcome**, and enter its **THEN**. You can also view and copy an existing THEN from the linked scenario.
-5. Under **Create a new case**, choose a requirement and add the path's connections in order from Event to Outcome. Complete the WHEN and THEN fields, click **Create case in flow**, then **Save flow**.
+3. Select a **Decision** and click **Collapse graph to edit**. Its editor is a list of WHEN conditions, each with a destination. Choose an **Outcome** or another **Decision** for each WHEN. Use **Add WHEN** for another branch. Existing OpenSpec wording can be copied into an empty condition.
+4. Select an **Outcome** and write its **THEN**. A route through two or more Decisions keeps each WHEN in order.
+5. Under **Link a path**, select a complete Event-to-Outcome route found automatically from the graph, enter its scenario name and requirement, then click **Create case in flow** and **Save flow**.
 
 You can create a case before its Markdown scenario exists. It will show as *pending reconciliation*. The `opsx-chart-graph-to-spec` skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After reviewing both, `opsx-chart-sync` synchronizes the spec and reconciles the graph; `opsx-chart-archive` closes the change.
 

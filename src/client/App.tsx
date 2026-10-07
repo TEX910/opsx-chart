@@ -271,6 +271,7 @@ export function App() {
         <h3>Active change and flow</h3>
         <p><strong>Active change:</strong> the OpenSpec work you have selected. It groups the proposal, tasks, spec deltas, and any graph drafts.</p>
         <p><strong>Flow:</strong> one behavior graph for a capability. A flow can be current or saved as a draft inside the active change. Saving a draft does not replace the current graph or update the spec Markdown; the graph is promoted when the change is reconciled. One change can contain several draft flows.</p>
+        <p>Edit a Decision as a list of WHEN conditions. Each condition leads to an Outcome or another Decision. Write the THEN on the final Outcome. Chart finds complete paths automatically; link each path to an OpenSpec scenario. The reconciliation skill writes the first condition as WHEN and later conditions as AND.</p>
         <p>On the spec map, drag a capability card to change only its position. Positions save automatically; <strong>Reset positions</strong> restores automatic layout.</p>
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
