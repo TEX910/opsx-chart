@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Flow, Relation, Relations, Diagnostic } from '../shared/model.js';
+import type { Flow, Relation, Relations, Diagnostic, MapLayout, MapPosition } from '../shared/model.js';
 import { emptyFlow, validateFlow } from '../shared/model.js';
 import type { CapabilityInfo, ProjectSnapshot } from '../server/openspec.js';
 import { api, post, put, remove } from './api.js';
@@ -23,6 +23,9 @@ export function App() {
   const [search, setSearch] = useState('');
   const [focus, setFocus] = useState(false);
   const [relations, setRelations] = useState<Relations>({ version: 1, edges: [] });
+  const [mapLayout, setMapLayout] = useState<MapLayout | null>(null);
+  const [mapLayoutRevision, setMapLayoutRevision] = useState(0);
+  const [mapSaving, setMapSaving] = useState(false);
   const [graphWorkspace, setGraphWorkspace] = useState<GraphWorkspace | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [relationshipTarget, setRelationshipTarget] = useState('');
@@ -57,8 +60,9 @@ export function App() {
   const selectedFlowSummary = flowChoices.find((item) => `${item.scope}:${item.id}` === flowSelection);
 
   async function loadSecondary(): Promise<void> {
+    const layout = api<MapLayout>('/map-layout').then((next) => { setMapLayout(next); return next; });
     const [nextRelations, nextSuggestions, nextPending, nextGraphWorkspace] = await Promise.all([
-      api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'), api<GraphWorkspace>('/graph-workspace'),
+      api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'), api<GraphWorkspace>('/graph-workspace'), layout,
     ]);
     setRelations(nextRelations); setSuggestions(nextSuggestions); setPending(nextPending); setGraphWorkspace(nextGraphWorkspace);
   }
@@ -121,6 +125,7 @@ export function App() {
     try {
       const next = await post<ProjectSnapshot>('/project', { path: projectInput });
       setGraphWorkspace(null);
+      setMapLayout(null);
       setProject(next); setSelectedCapability(next.current[0]?.id ?? next.proposed[0]?.id ?? null);
       setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false);
       await loadSecondary();
@@ -145,6 +150,26 @@ export function App() {
       const result = await put<{ relations: Relations; diagnostics: Diagnostic[] }>('/relations', next);
       setRelations(result.relations); setDiagnostics(result.diagnostics); setMessage('Relations saved.'); setError('');
     } catch (failure) { setError(String(failure)); }
+  }
+
+  async function moveMapNode(id: string, position: MapPosition): Promise<void> {
+    setMapSaving(true);
+    try {
+      const next = await put<MapLayout>('/map-layout', { capability: id, position });
+      setMapLayout(next);
+      setMessage(`Position saved for ${id}.`); setError('');
+    } catch (failure) { setError(String(failure)); }
+    finally { setMapSaving(false); }
+  }
+
+  async function resetMapPositions(): Promise<void> {
+    setMapSaving(true);
+    try {
+      setMapLayout(await remove<MapLayout>('/map-layout', {}));
+      setMapLayoutRevision((value) => value + 1);
+      setMessage('Automatic map layout restored.'); setError('');
+    } catch (failure) { setError(String(failure)); }
+    finally { setMapSaving(false); }
   }
 
   async function addRelationship(): Promise<void> {
@@ -246,6 +271,7 @@ export function App() {
         <h3>Active change and flow</h3>
         <p><strong>Active change:</strong> the OpenSpec work you have selected. It groups the proposal, tasks, spec deltas, and any graph drafts.</p>
         <p><strong>Flow:</strong> one behavior graph for a capability. A flow can be current or saved as a draft inside the active change. Saving a draft does not replace the current graph or update the spec Markdown; the graph is promoted when the change is reconciled. One change can contain several draft flows.</p>
+        <p>On the spec map, drag a capability card to change only its position. Positions save automatically; <strong>Reset positions</strong> restores automatic layout.</p>
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
         <pre><code>opsx-chart init --root /path/to/project --skills</code></pre>
@@ -274,8 +300,8 @@ export function App() {
           <div className="sidebar-footer"><label>Active change<select value={selectedChange} onChange={(event) => { if (dirtyFlow || deltaDirty) { if (!window.confirm('You have unsaved changes. Switch change?')) return; } setSelectedChange(event.target.value); setDirtyFlow(false); setDeltaDirty(false); }}><option value="">None</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Behavior edits require an active change.</small></div>
         </aside>
         <main className="main-panel">
-          <div className="view-header"><div><span className="eyebrow">{page === 'map' ? 'ONE CAPABILITY PER SPEC' : 'BEHAVIOR'}</span><h1>{page === 'map' ? 'Specification map' : selectedCapability ?? 'Flows'}</h1></div><div className="tabs"><button className={page === 'map' ? 'active' : ''} onClick={() => setPage('map')}>Map</button><button className={page === 'flow' ? 'active' : ''} onClick={() => setPage('flow')}>Flow</button></div></div>
-          {page === 'map' ? <MapView project={project} relations={relations.edges} suggestions={suggestions} selected={selectedCapability} onSelect={selectCapability} search={search} focus={focus} /> :
+          <div className="view-header"><div><span className="eyebrow">{page === 'map' ? 'ONE CAPABILITY PER SPEC' : 'BEHAVIOR'}</span><h1>{page === 'map' ? 'Specification map' : selectedCapability ?? 'Flows'}</h1>{page === 'map' ? <small className="map-help">Drag spec cards to reposition them. Changes save automatically.</small> : null}</div><div className="view-actions">{page === 'map' && mapLayout && Object.keys(mapLayout.positions).length ? <button className="quiet" onClick={() => void resetMapPositions()} disabled={mapSaving}>Reset positions</button> : null}<div className="tabs"><button className={page === 'map' ? 'active' : ''} onClick={() => setPage('map')}>Map</button><button className={page === 'flow' ? 'active' : ''} onClick={() => setPage('flow')}>Flow</button></div></div></div>
+          {page === 'map' ? mapLayout ? <MapView key={`${project.root}:${mapLayoutRevision}`} project={project} relations={relations.edges} suggestions={suggestions} selected={selectedCapability} onSelect={selectCapability} search={search} focus={focus} savedPositions={mapLayout.positions} saving={mapSaving} onMove={moveMapNode} /> : <div className="empty-canvas">Loading map…</div> :
             <div className="flow-page"><div className="flow-selection"><label>Flow<select value={flowSelection} onChange={(event) => { if (dirtyFlow && !window.confirm('You have unsaved changes. Switch flow?')) return; setDirtyFlow(false); setFlowSelection(event.target.value); }}><option value="">Select…</option>{flowChoices.map((item) => <option key={`${item.scope}:${item.id}`} value={`${item.scope}:${item.id}`}>{item.name} {item.scope === 'change' ? '· draft' : '· current'}</option>)}</select></label>
               {flow ? <><span className={`pill ${flowScope === 'change' ? 'amber' : ''}`}>{flowScope === 'change' ? 'DRAFT' : 'CURRENT'}</span><button onClick={() => void saveCurrentFlow()} disabled={!dirtyFlow || busy}>Save flow</button><button className="quiet danger" onClick={() => void deleteCurrentFlow()} disabled={!selectedChange}>Delete</button></> : null}</div>
               {flow ? <FlowEditor flow={flow} project={project} change={selectedChange} dirty={dirtyFlow} saving={busy} onSave={() => void saveCurrentFlow()} selectedCase={selectedCase} onSelectCase={selectGraphCase} onChange={(next) => { setFlow(next); setDirtyFlow(true); }} /> : <div className="empty-canvas"><h2>No flow selected</h2><p>Create a flow for this spec or select an existing one.</p></div>}

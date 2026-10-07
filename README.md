@@ -4,6 +4,8 @@
 
 You can draft and edit behavior in the graph. A skill carries the graph's WHEN/THEN statements into the change's Markdown spec delta for review. OPSX Chart does not require a fork of OpenSpec.
 
+On the specification map, drag capability cards to adjust their positions. The app saves positions automatically in `openspec/graph/map-layout.yaml`; **Reset positions** restores automatic layout. Position changes do not edit spec text or capability relationships.
+
 ## Core concepts
 
 | In the app | Meaning |

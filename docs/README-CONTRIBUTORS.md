@@ -16,6 +16,8 @@ The API listens on `127.0.0.1:4317` and the development UI on `127.0.0.1:5173`. 
 
 To use Chart from another local OpenSpec checkout, run `npm run build && npm link` here, then `opsx-chart init --root /path/to/project --skills`. The CLI creates `openspec/graph/relations.yaml` and `flows/.gitkeep` only when absent and copies missing `opsx-chart-*` skill directories to the project's `.agents/skills/`. Existing files are not overwritten. Without `--skills`, it initializes only the graph workspace; the app exposes the same graph-only operation as **Initialize graph workspace** when the workspace is missing. The target project must also have access to the OpenSpec phase skills that the Chart phase skills call.
 
+The map stores manually dragged capability positions in `openspec/graph/map-layout.yaml`. It loads the file if present and uses automatic ELK layout for all other capabilities. This file contains only coordinates; **Reset positions** clears them without changing `relations.yaml` or OpenSpec Markdown.
+
 ## File ownership
 
 | File | Owner and purpose |
@@ -23,6 +25,7 @@ To use Chart from another local OpenSpec checkout, run `npm run build && npm lin
 | `openspec/specs/<capability>/spec.md` | OpenSpec's current behavior contract |
 | `openspec/changes/<change>/specs/<capability>/spec.md` | Proposed OpenSpec delta |
 | `openspec/graph/relations.yaml` | Version 1 directed capability relationships with stable edge IDs and types (`depends-on`, `invokes`, `emits-to`, `shares-data-with`) |
+| `openspec/graph/map-layout.yaml` | Version 1 manual capability positions; optional and independent of relationship data |
 | `openspec/graph/flows/<capability>/<flow-id>.yaml` | Version 1 flow nodes, edges, ordered case paths, scenario references, fingerprints, and layout. Decision nodes carry `whens` keyed by outgoing edge ID; outcome nodes carry `then` |
 | `openspec/changes/<change>/graph/flows/...` | Behavioral draft with a `baseDigest` of the canonical graph; a draft may mark a flow `deleted: true` |
 | `openspec/changes/<change>/graph/relations.yaml` | Optional proposed relationship snapshot |

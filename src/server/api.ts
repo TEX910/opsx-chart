@@ -4,8 +4,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  deleteFlow, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts,
-  preflightReconciliation, reconcileGraph, saveFlow, saveRelations, validateGraph, digest,
+  deleteFlow, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts,
+  preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations, validateGraph, digest,
 } from './graph-store.js';
 import { projectSnapshot, resolveProjectRoot, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
 
@@ -74,6 +74,11 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
   app.get('/api/graph-workspace', route(async (_req, res) => res.json(await graphWorkspaceStatus(currentRoot()))));
   app.post('/api/graph-workspace', route(async (_req, res) => res.json(await initGraphWorkspace(currentRoot()))));
   app.get('/api/relations', route(async (_req, res) => res.json(await loadRelations(currentRoot()))));
+  app.get('/api/map-layout', route(async (_req, res) => res.json(await loadMapLayout(currentRoot()))));
+  app.put('/api/map-layout', route(async (req, res) => {
+    res.json(await saveMapPosition(currentRoot(), input(req.body?.capability, 'capability'), req.body?.position, await fresh()));
+  }));
+  app.delete('/api/map-layout', route(async (_req, res) => res.json(await resetMapLayout(currentRoot()))));
   app.put('/api/relations', route(async (req, res) => {
     const result = await saveRelations(currentRoot(), req.body, await fresh());
     res.status(result.diagnostics.some((item) => item.severity === 'error') ? 422 : 200).json({ ...result, error: result.diagnostics.filter((item) => item.severity === 'error').map((item) => item.message).join('; ') || undefined });

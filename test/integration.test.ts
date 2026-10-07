@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emptyFlow, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
-import { graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, saveRelations } from '../src/server/graph-store.js';
+import { graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations } from '../src/server/graph-store.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
 let root: string;
@@ -36,6 +36,22 @@ describe('OpenSpec project and graph coordination', () => {
     await saveRelations(root, relation);
     expect((await initGraphWorkspace(root)).created).toBe(false);
     expect(await loadRelations(root)).toEqual(relation);
+  });
+
+  it('persists map positions separately from capability relationships and resets them', async () => {
+    expect(await loadMapLayout(root)).toEqual({ version: 1, positions: {} });
+    expect(await saveMapPosition(root, 'authentication', { x: 360, y: 120 })).toEqual({ version: 1, positions: { authentication: { x: 360, y: 120 } } });
+    expect(await saveMapPosition(root, 'notifications', { x: 820, y: 300 })).toEqual({ version: 1, positions: {
+      authentication: { x: 360, y: 120 }, notifications: { x: 820, y: 300 },
+    } });
+    expect(await loadMapLayout(root)).toEqual({ version: 1, positions: {
+      authentication: { x: 360, y: 120 }, notifications: { x: 820, y: 300 },
+    } });
+    await expect(fs.stat(graphPath(root, 'relations.yaml'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(saveMapPosition(root, 'missing', { x: 0, y: 0 })).rejects.toThrow('Capability does not exist');
+    await expect(saveMapPosition(root, 'authentication', { x: Infinity, y: 0 })).rejects.toThrow();
+    expect(await resetMapLayout(root)).toEqual({ version: 1, positions: {} });
+    expect(await loadMapLayout(root)).toEqual({ version: 1, positions: {} });
   });
 
   it('persists typed relationships and rejects a dependency cycle', async () => {

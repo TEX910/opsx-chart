@@ -3,8 +3,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import {
-  FlowSchema, RelationsSchema, emptyFlow, emptyRelations, isLayoutOnly,
-  validateFlow, validateRelations, type Diagnostic, type Flow, type Relations,
+  FlowSchema, MapLayoutSchema, PositionSchema, RelationsSchema, emptyFlow, emptyMapLayout, emptyRelations, isLayoutOnly,
+  validateFlow, validateRelations, type Diagnostic, type Flow, type MapLayout, type Relations,
 } from '../shared/model.js';
 import { projectSnapshot, resolveProjectRoot, scenarioLookup, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
 
@@ -87,6 +87,27 @@ async function readYaml<T>(file: string, parser: { parse: (value: unknown) => T 
 
 export async function loadRelations(root: string): Promise<Relations> {
   return readYaml(graphPath(root, 'relations.yaml'), RelationsSchema, emptyRelations);
+}
+
+export async function loadMapLayout(root: string): Promise<MapLayout> {
+  return readYaml(graphPath(root, 'map-layout.yaml'), MapLayoutSchema, emptyMapLayout);
+}
+
+export async function saveMapPosition(root: string, capability: string, value: unknown, snapshot?: ProjectSnapshot): Promise<MapLayout> {
+  checkId(capability, 'capability', safeCapability);
+  const position = PositionSchema.parse(value);
+  const project = snapshot ?? await projectSnapshot(root);
+  if (![...project.current, ...project.proposed].some((item) => item.id === capability)) throw new Error(`Capability does not exist: ${capability}`);
+  const layout = await loadMapLayout(root);
+  const next = { ...layout, positions: { ...layout.positions, [capability]: position } };
+  await writeAtomic(graphPath(root, 'map-layout.yaml'), YAML.stringify(next));
+  return next;
+}
+
+export async function resetMapLayout(root: string): Promise<MapLayout> {
+  const layout = emptyMapLayout();
+  await writeAtomic(graphPath(root, 'map-layout.yaml'), YAML.stringify(layout));
+  return layout;
 }
 
 export async function saveRelations(root: string, value: unknown, snapshot?: ProjectSnapshot): Promise<{ relations: Relations; diagnostics: Diagnostic[] }> {

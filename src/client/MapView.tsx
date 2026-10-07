@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ReactFlow, Background, Controls, Handle, MiniMap, Position, MarkerType, type Edge, type Node, type NodeProps } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Handle, MiniMap, Position, MarkerType, type Edge, type Node, type NodeChange, type NodeProps } from '@xyflow/react';
 import ELK from 'elkjs/lib/elk.bundled.js';
-import type { Relation } from '../shared/model.js';
+import type { MapLayout, MapPosition, Relation } from '../shared/model.js';
 import type { ProjectSnapshot } from '../server/openspec.js';
 
 type Suggestion = { source: string; target: string; change: string };
@@ -13,6 +13,9 @@ type Props = {
   onSelect: (id: string) => void;
   search: string;
   focus: boolean;
+  savedPositions: MapLayout['positions'];
+  saving: boolean;
+  onMove: (id: string, position: MapPosition) => Promise<void>;
 };
 
 function CapabilityNode({ data, selected }: NodeProps<Node<{ label: string; detail: string; proposed: boolean }>>) {
@@ -28,8 +31,9 @@ function CapabilityNode({ data, selected }: NodeProps<Node<{ label: string; deta
 const nodeTypes = { capability: CapabilityNode };
 const elk = new ELK();
 
-export function MapView({ project, relations, suggestions, selected, onSelect, search, focus }: Props) {
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+export function MapView({ project, relations, suggestions, selected, onSelect, search, focus, savedPositions, saving, onMove }: Props) {
+  const [autoPositions, setAutoPositions] = useState<Record<string, MapPosition>>({});
+  const [dragPositions, setDragPositions] = useState<Record<string, MapPosition>>({});
   const capabilities = useMemo(() => {
     const byId = new Map(project.current.map((item) => [item.id, { ...item, proposedOnly: false }]));
     for (const item of project.proposed) if (!byId.has(item.id)) byId.set(item.id, { ...item, proposedOnly: true });
@@ -50,21 +54,24 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
       id: 'capabilities', layoutOptions: {
         'elk.algorithm': 'layered',
         'elk.direction': 'RIGHT',
-        'elk.spacing.nodeNode': '100',
-        'elk.layered.spacing.nodeNodeBetweenLayers': '180',
+        'elk.spacing.nodeNode': '150',
+        'elk.spacing.componentComponent': '170',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '230',
       },
       children: capabilities.map((item) => ({ id: item.id, width: 205, height: 96 })),
       edges: visibleRelations.map((item) => ({ id: item.id, sources: [item.source], targets: [item.target] })),
     };
     void elk.layout(graph).then((layout) => {
       if (cancelled) return;
-      setPositions(Object.fromEntries((layout.children ?? []).map((item) => [item.id, { x: item.x ?? 0, y: item.y ?? 0 }])));
+      setAutoPositions(Object.fromEntries((layout.children ?? []).map((item) => [item.id, { x: item.x ?? 0, y: item.y ?? 0 }])));
     });
     return () => { cancelled = true; };
   }, [capabilities.map((item) => item.id).join('|'), visibleRelations.map((item) => `${item.id}:${item.source}:${item.target}`).join('|')]);
 
+  const layoutKey = capabilities.map((item) => `${item.id}:${autoPositions[item.id]?.x ?? 'pending'}:${autoPositions[item.id]?.y ?? 'pending'}`).join('|');
+
   const nodes: Node[] = capabilities.map((item, index) => ({
-    id: item.id, type: 'capability', position: positions[item.id] ?? { x: (index % 3) * 385, y: Math.floor(index / 3) * 190 },
+    id: item.id, type: 'capability', position: dragPositions[item.id] ?? savedPositions[item.id] ?? autoPositions[item.id] ?? { x: (index % 3) * 435, y: Math.floor(index / 3) * 245 },
     initialWidth: 205, initialHeight: 96,
     data: { label: item.id, detail: item.purpose.slice(0, 85) || 'Spec in progress', proposed: item.proposedOnly },
     selected: selected === item.id,
@@ -81,7 +88,15 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
     })),
   ];
   return <div className="canvas map-canvas">
-    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} nodesConnectable={false}
+    <ReactFlow key={layoutKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={!saving} nodesConnectable={false}
+      onNodesChange={(changes: NodeChange[]) => {
+        const moved: Record<string, MapPosition> = {};
+        for (const change of changes) if (change.type === 'position' && change.position) moved[change.id] = change.position;
+        if (Object.keys(moved).length) setDragPositions((current) => ({ ...current, ...moved }));
+      }}
+      onNodeDragStop={(_event, node) => { void onMove(node.id, node.position).finally(() => setDragPositions((current) => {
+        const next = { ...current }; delete next[node.id]; return next;
+      })); }}
       onNodeClick={(_event, node) => onSelect(node.id)} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.15 }} proOptions={{ hideAttribution: true }}>
       <Background color="#d5dee0" gap={22} size={1} />
       <Controls showInteractive={false} />

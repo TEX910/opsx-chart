@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const identifier = z.string().min(1);
 const capabilityPath = z.string().min(1).regex(/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/);
-const position = z.object({ x: z.number().finite(), y: z.number().finite() });
+export const PositionSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
 
 export const RelationType = z.enum(['depends-on', 'invokes', 'emits-to', 'shares-data-with']);
 export const RelationSchema = z.object({
@@ -15,6 +15,10 @@ export const RelationsSchema = z.object({
   version: z.literal(1),
   baseDigest: z.string().nullable().optional(),
   edges: z.array(RelationSchema),
+});
+export const MapLayoutSchema = z.object({
+  version: z.literal(1),
+  positions: z.record(capabilityPath, PositionSchema),
 });
 
 export const ScenarioRefSchema = z.object({
@@ -36,7 +40,7 @@ export const FlowSchema = z.object({
     id: identifier,
     type: z.enum(['event', 'action', 'decision', 'outcome']),
     label: z.string(),
-    position,
+    position: PositionSchema,
     whens: z.record(identifier, z.string()).optional(),
     then: z.string().optional(),
   })),
@@ -58,6 +62,8 @@ export const FlowSchema = z.object({
 
 export type Relation = z.infer<typeof RelationSchema>;
 export type Relations = z.infer<typeof RelationsSchema>;
+export type MapLayout = z.infer<typeof MapLayoutSchema>;
+export type MapPosition = z.infer<typeof PositionSchema>;
 export type ScenarioRef = z.infer<typeof ScenarioRefSchema>;
 export type Flow = z.infer<typeof FlowSchema>;
 export type FlowNode = Flow['nodes'][number];
@@ -101,6 +107,7 @@ export type ScenarioLookup = (ref: ScenarioRef) => {
 };
 
 export const emptyRelations = (): Relations => ({ version: 1, edges: [] });
+export const emptyMapLayout = (): MapLayout => ({ version: 1, positions: {} });
 export const emptyFlow = (capability: string, id: string, name = id): Flow => ({
   version: 1, capability, id, name, nodes: [], edges: [], cases: [],
 });
