@@ -29,12 +29,12 @@ If an external tool changes OpenSpec Markdown or graph YAML while Chart is open,
 ## Edit behavior
 
 1. Select a capability and open **Flow**. The right column shows its associated spec and a link to the Markdown source.
-2. Select an **Active change**, or enter a name under **New change** and click **Create change**. This creates the OpenSpec change shell; its proposal, spec delta, and tasks still need to be planned and reviewed through the OpenSpec workflow.
+2. Select an **Active change**, or enter a name under **New change** and click **Create change**. This creates an OpenSpec change shell. You can plan first with `opsx-chart-propose`, or draw the flow first and let `opsx-chart-graph-to-spec` complete the missing planning files in that same change.
 3. Select a **Decision** and click **Collapse graph to edit**. Its editor is a list of WHEN conditions. Each can lead to an **Action**, another **Decision**, or an **Outcome**. Use **Add WHEN** for another branch. An Action can lead to an Outcome.
 4. Select an **Outcome** and write its **THEN**. Actions between a Decision and Outcome remain steps in the path; a later Decision adds another condition.
-5. Click **Save flow**. Under **OpenSpec scenarios and paths**, review linked cases, unlinked routes, and scenario text. These associations and the spec delta are read only in the app. Ask a skill-compatible assistant to use `opsx-chart-graph-to-spec` for the active change: it matches each complete path to a scenario, creates missing cases and scenarios, and writes the change's Markdown delta.
+5. Click **Save flow**. Under **OpenSpec scenarios and paths**, review linked cases, unlinked routes, and scenario text. These associations and the spec delta are read only in the app. Ask a skill-compatible assistant to use `opsx-chart-graph-to-spec` with the change ID: it matches each complete path to a scenario, writes the Markdown delta, and fills any missing proposal, design, and task artifacts required by OpenSpec. Review the resulting plan before `opsx-chart-apply`.
 
-The skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After reviewing both, `opsx-chart-sync` synchronizes the spec and reconciles the graph; `opsx-chart-archive` closes the change. Creating, removing, or changing a graph path's scenario association is handled by the skills, not by form controls in the app.
+The skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After implementation with `opsx-chart-apply`, `opsx-chart-sync` synchronizes the spec and reconciles the graph; `opsx-chart-archive` closes the change. Creating, removing, or changing a graph path's scenario association is handled by the skills, not by form controls in the app.
 
 For projects created with older versions that have several flows for one capability, the Flow view offers **Combine flows**. It copies the original YAML files into `openspec/graph/legacy-flows/` before writing one combined graph. Pending graph drafts must be reconciled first.
 
