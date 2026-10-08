@@ -17,8 +17,8 @@
 ## 3. Behavioral flow editor
 
 - [x] 3.1 Define and validate the versioned flow format: nodes, edges, finite cases, scenario references, fingerprints, and layout.
-- [x] 3.2 Build per-capability flow selection and the editable canvas for event, action, decision, and outcome nodes.
-- [x] 3.3 Implement bidirectional navigation between a graph case and its current or proposed OpenSpec scenario.
+- [x] 3.2 Build one editable behavior flow per capability with event, action, decision, and outcome nodes.
+- [x] 3.3 Show graph cases beside current or proposed OpenSpec scenarios, with scenario associations maintained by skills.
 - [x] 3.4 Report incomplete topology and unresolved links without inventing missing behavior.
 
 ## 4. Paired changes and reconciliation
@@ -35,3 +35,4 @@
 - [x] 5.2 Write workflow guidance for spec sync, graph reconciliation, and archive, including incomplete-state recovery.
 - [x] 5.3 Verify the acceptance scenarios with a fixture OpenSpec project covering new, modified, renamed, and externally edited scenarios.
 - [x] 5.4 Verify that opening a standard OpenSpec project without graph files remains read-only and that layout changes never create spec deltas.
+- [x] 5.5 Verify external refresh with a change open reloads the flow, scenarios, paths, and diagnostics together while preserving unsaved graph edits.

@@ -8,8 +8,8 @@ OpenSpec makes capabilities and change proposals reviewable as text, but it does
 
 - Add a local workspace that reads an existing OpenSpec project and shows its capabilities, requirements, scenarios, and active changes.
 - Let users declare typed relationships between capabilities and navigate their impact.
-- Let users draw one or more behavioral flows for a capability, with graph paths linked to OpenSpec scenarios.
-- Keep graph files and OpenSpec delta specs coherent when behavior changes; provide deterministic validation and optional assistant guidance for drafting updates in either direction.
+- Let users draw one behavioral flow per capability, with Decision WHENs, Outcome THENs, and paths linked to OpenSpec scenarios through skills.
+- Keep graph files and OpenSpec delta specs coherent when behavior changes; provide deterministic validation and skills for reconciling updates in either direction.
 - Keep graph data in versioned files beside OpenSpec content so it remains available without the visual application.
 
 ## Capabilities

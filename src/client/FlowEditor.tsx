@@ -196,7 +196,10 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={editable} nodesConnectable={editable} edgesFocusable={editable} onInit={(instance) => { flowInstance.current = instance; }} onNodesChange={editable ? changeNodes : undefined} onEdgesChange={editable ? changeEdges : undefined}
         onConnect={editable ? connect : undefined} onNodeClick={(_event, node) => { setSelectedNode(node.id); }}
         onEdgeClick={(_event, edge) => { setSelectedNode(edge.source); }}
-        onMoveEnd={editable ? (_event, viewport) => onChange({ ...flow, viewport }) : undefined}
+        onMoveEnd={editable ? (event, viewport) => {
+          if (!event || (flow.viewport?.x === viewport.x && flow.viewport.y === viewport.y && flow.viewport.zoom === viewport.zoom)) return;
+          onChange({ ...flow, viewport });
+        } : undefined}
         defaultViewport={flow.viewport} fitView={!flow.viewport} fitViewOptions={{ padding: 0.25, maxZoom: 1.2 }} proOptions={{ hideAttribution: true }}>
         <Background color="#d5dee0" gap={22} size={1} /><Controls /><MiniMap pannable zoomable nodeColor={(node) => nodeColors[(node.data as { kind: FlowNode['type'] }).kind]} />
       </ReactFlow>

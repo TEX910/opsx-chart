@@ -30,9 +30,13 @@ The workspace SHALL display canonical capabilities separately from active change
 - **THEN** the workspace displays it as proposed rather than as current behavior
 
 ### Requirement: Refresh after external edits
-The workspace SHALL refresh its displayed content after OpenSpec files change outside the application without discarding unsaved graph edits.
+The workspace SHALL reload the selected graph, paths, scenarios, delta, and diagnostics together after OpenSpec or graph files change outside the application, while preserving unsaved graph edits.
 
-#### Scenario: Spec edited in a text editor
-- **WHEN** a user edits a displayed spec in another editor
-- **THEN** the workspace reloads its content or offers a visible refresh
-- **AND** any unsaved graph edits remain available for review
+#### Scenario: Flow draft and spec delta edited externally
+- **WHEN** a user changes the selected flow draft and spec delta while the change remains open in Chart
+- **THEN** the workspace reloads the graph, paths, scenarios, and diagnostics together without reopening the project
+- **AND** it shows a loading state until the flow is available
+
+#### Scenario: External edit while graph edits are unsaved
+- **WHEN** OpenSpec or graph files change on disk while the user has unsaved graph edits
+- **THEN** the workspace preserves those edits and offers an explicit action to load the disk version

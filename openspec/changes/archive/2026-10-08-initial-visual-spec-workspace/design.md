@@ -6,7 +6,7 @@ OpenSpec owns the current behavioral contract in `openspec/specs/**/spec.md` and
 
 ## Goals and non-goals
 
-The first release must let a developer navigate capability relationships and edit behavioral flows without losing the existing Markdown workflow. A graph path and its linked scenario must be traceable in either direction. External edits must be detected. Assistant skills may help draft changes, while deterministic application code owns persistence and validation.
+The first release must let a developer navigate capability relationships and edit one behavioral flow per capability without losing the existing Markdown workflow. A graph path and its linked scenario must be traceable. External edits must be detected. Assistant skills reconcile scenarios, while deterministic application code owns persistence and validation.
 
 The graph is descriptive, not executable. It does not generate application code or replace OpenSpec specs. Registered stores, multiple roots, live collaboration, and automatic inference of complete flow topology from prose are deferred.
 
@@ -29,6 +29,7 @@ openspec/
   specs/<capability>/spec.md                 # current contract, owned by OpenSpec
   graph/
     relations.yaml                           # current capability relationships
+    map-layout.yaml                          # optional manual capability positions
     flows/<capability>/<flow-id>.yaml        # current flow topology and scenario links
   changes/<change>/
     specs/<capability>/spec.md               # OpenSpec delta
@@ -42,19 +43,19 @@ The proposed graph files use the same relative paths as canonical graph files. A
 
 ### 3. Link graph cases to OpenSpec scenarios, not entire documents
 
-A capability is identified by its path under `openspec/specs/`. A scenario reference identifies the capability, exact requirement heading, exact scenario heading, and whether it comes from the current spec or an active change. Graph node and edge IDs are stable independently of labels and canvas positions. A flow contains one or more finite `cases`; each case records an ordered path of edge IDs and one scenario reference. A path may revisit a node, but its recorded case remains finite.
+A capability is identified by its spec path. It has one behavior flow; an active change may hold the draft version. A scenario reference identifies the capability, exact requirement heading, exact scenario heading, and whether it comes from the current spec or an active change. Graph node and edge IDs are stable independently of labels and canvas positions. A flow contains finite `cases`; each case records an ordered path of edge IDs and one scenario reference. Paths shown for reconciliation are acyclic Event-to-Outcome routes.
 
 OpenSpec currently matches requirement headings by name during delta operations. The adapter therefore resolves references by exact names and treats renames as an explicit migration. A stored fingerprint of linked scenario content identifies an external text edit even when headings stay the same. Missing references, ambiguous names, and changed fingerprints are diagnostics; the application does not guess a replacement.
 
 ### 4. Validate graph structure and behavior links independently
 
-Validation checks unique IDs, allowed node and relationship types, existing edge endpoints, reachable nodes, labeled decision branches, valid case paths, and resolved scenario references. Only `depends-on` relationships are required to be acyclic; behavioral flows may have loops. Incomplete flow topology can be saved as a draft with visible diagnostics. Promotion to canonical graph files requires valid references and a successful OpenSpec validation of the corresponding change.
+Validation checks unique IDs, allowed node and relationship types, existing edge endpoints, reachable nodes, Decision WHENs, Outcome THENs, valid case paths, and resolved scenario references. `depends-on` relationships and behavior flows must be acyclic. Incomplete flow topology can be saved as a draft with visible diagnostics. Promotion to canonical graph files requires valid references and a successful OpenSpec validation of the corresponding change.
 
-The map may show suggestions derived from co-changes or textual mentions. These are marked as unconfirmed and remain outside `relations.yaml` until a person accepts a typed edge.
+The map may show suggestions derived from co-changes or textual mentions. These are marked as unconfirmed and remain outside `relations.yaml` until a person accepts a typed edge. Manual card positions live in `map-layout.yaml`, separately from relationships.
 
 ### 5. Use OpenSpec changes for semantic edits
 
-Moving nodes or changing viewport state updates only graph layout. Adding, removing, or changing a path's behavioral meaning requires an active OpenSpec change. The graph draft is stored under that change, and the UI displays the delta scenario that expresses the intended outcome. A scenario may be drafted by an assistant skill or written directly by the user; either way, it remains reviewable before graph promotion.
+Every UI edit requires an active OpenSpec change, including layout, relationships, and behavior. Moving nodes or changing viewport state updates only graph layout and does not create a spec delta. Adding, removing, or changing a path's behavioral meaning stores a graph draft under the selected change. Decision branches carry WHEN text and Outcomes carry THEN text. The UI displays scenario links and delta Markdown read only; the graph-to-spec skill maintains those links and reconciles complete paths into the delta for review before promotion.
 
 For the first integration, reconciliation follows this order:
 
@@ -67,7 +68,11 @@ The UI reports the intermediate state after step 2 until step 3 succeeds. If a u
 
 ### 6. Make skills orchestration, not the source of correctness
 
-Plan two companion skills: graph-to-spec drafts a scenario delta from a selected path and its requirement context; spec-to-graph suggests a graph patch from a changed scenario and the existing flow. A third workflow skill may guide sync, graph reconciliation, and archive. The skills call deterministic CLI operations for inspection, drafting, validation, and promotion; they do not implement their own parsers or silently overwrite canonical files. The application works for manual editing when no assistant is connected.
+Graph-to-spec reconciles complete paths into scenario deltas; spec-to-graph proposes a graph patch from changed Markdown. Phase skills cover exploration, proposal, update, implementation, sync, reconciliation, and archive using the same OpenSpec change and task list. They call deterministic CLI operations for inspection, drafting, validation, and promotion; they do not implement their own parsers or silently overwrite canonical files. The application supports manual graph editing, while scenario association and Markdown reconciliation remain skill owned.
+
+### 7. Refresh the selected workspace as one read
+
+The server watches `openspec/` and sends file events. The client reloads the OpenSpec snapshot, selected flow YAML, delta, diagnostics, and graph metadata before applying the new state together. A loading indicator avoids showing an absent-flow message during retrieval. If local graph edits are unsaved, the client keeps them and offers an explicit disk reload; overwriting newer disk content with those edits requires confirmation.
 
 ## Risks and mitigations
 

@@ -24,6 +24,8 @@ The **active change** is the selected OpenSpec change, such as `adjust-login`. I
 
 A **draft flow** is the modified version of a capability's graph inside that change. Editing a WHEN, THEN, node, or connection and clicking **Save flow** saves a graph draft in the change. The **current** flow stays as it was until the draft is reconciled. A change may affect several capabilities, each with one flow.
 
+If an external tool changes OpenSpec Markdown or graph YAML while Chart is open, the selected flow, paths, scenarios, and diagnostics refresh together. Chart shows **Loading flow…** while reading the files. If you have unsaved graph edits, Chart keeps them and displays **Load version on disk**; choosing it replaces those local edits after confirmation. Saving your local edits over a newer disk version also requires confirmation.
+
 ## Edit behavior
 
 1. Select a capability and open **Flow**. The right column shows its associated spec and a link to the Markdown source.

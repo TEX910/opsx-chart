@@ -31,9 +31,10 @@ export function App() {
   const [relationshipTarget, setRelationshipTarget] = useState('');
   const [relationshipType, setRelationshipType] = useState<Relation['type']>('depends-on');
   const [flows, setFlows] = useState<FlowSummary[]>([]);
-  const [flowSelection, setFlowSelection] = useState('');
   const [flow, setFlow] = useState<Flow | null>(null);
   const [flowScope, setFlowScope] = useState<'current' | 'change'>('current');
+  const [flowLoading, setFlowLoading] = useState(true);
+  const [reloadVersion, setReloadVersion] = useState(0);
   const [dirtyFlow, setDirtyFlow] = useState(false);
   const [externalChanged, setExternalChanged] = useState(false);
   const helpDialog = useRef<HTMLDialogElement | null>(null);
@@ -46,7 +47,6 @@ export function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const dirtyRef = useRef(false);
-  useEffect(() => { dirtyRef.current = dirtyFlow; }, [dirtyFlow]);
 
   const currentCapability = project?.current.find((item) => item.id === selectedCapability);
   const proposedCapability = project?.proposed.find((item) => item.id === selectedCapability && item.change === selectedChange);
@@ -54,74 +54,64 @@ export function App() {
   const flowChoices = flows.filter((item) => item.capability === selectedCapability);
   const legacyFlowIds = [...new Set(flowChoices.map((item) => item.id))];
   const needsConsolidation = legacyFlowIds.length > 1;
-  const selectedFlowSummary = flowChoices.find((item) => `${item.scope}:${item.id}` === flowSelection);
+  const visibleDiagnostics = [...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])];
 
-  async function loadSecondary(): Promise<void> {
-    const layout = api<MapLayout>('/map-layout').then((next) => { setMapLayout(next); return next; });
-    const [nextRelations, nextSuggestions, nextPending, nextGraphWorkspace] = await Promise.all([
-      api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'), api<GraphWorkspace>('/graph-workspace'), layout,
-    ]);
-    setRelations(nextRelations); setSuggestions(nextSuggestions); setPending(nextPending); setGraphWorkspace(nextGraphWorkspace);
-  }
-
-  async function refresh(external = false): Promise<void> {
-    try {
-      const next = await api<ProjectSnapshot>('/refresh');
-      setProject(next);
-      setSelectedCapability((current) => current && [...next.current, ...next.proposed].some((item) => item.id === current)
-        ? current : next.current[0]?.id ?? next.proposed[0]?.id ?? null);
-      await loadSecondary();
-      if (external && dirtyRef.current) setExternalChanged(true);
-      setError('');
-    } catch (failure) { setError(String(failure)); }
+  function refresh(external = false): void {
+    if (external && dirtyRef.current) { setExternalChanged(true); return; }
+    setFlowLoading(true);
+    setReloadVersion((value) => value + 1);
   }
 
   useEffect(() => {
-    void api<ProjectSnapshot | { root: null }>('/project').then(async (value) => {
+    void api<ProjectSnapshot | { root: null }>('/project').then((value) => {
       if (!value.root) return;
       const next = value as ProjectSnapshot;
       setProject(next); setProjectInput(next.root);
       setSelectedCapability(next.current[0]?.id ?? next.proposed[0]?.id ?? null);
       if (!next.current.length) setSelectedChange(next.changes[0]?.name ?? '');
-      await loadSecondary();
     }).catch((failure) => setError(String(failure)));
     const stream = new EventSource('/api/events');
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    stream.onmessage = () => { clearTimeout(timeout); timeout = setTimeout(() => void refresh(true), 450); };
+    stream.onmessage = () => { clearTimeout(timeout); timeout = setTimeout(() => refresh(true), 450); };
     return () => { stream.close(); clearTimeout(timeout); };
   }, []);
 
   useEffect(() => {
-    if (!project || !selectedCapability) { setFlows([]); setFlow(null); return; }
+    if (!project || !selectedCapability) { setFlows([]); setFlow(null); setFlowLoading(false); return; }
     let cancelled = false;
-    void Promise.all([
-      api<FlowSummary[]>(`/flows?${query({ change: selectedChange || undefined })}`),
-      selectedChange ? api<DeltaFile>(`/delta?${query({ capability: selectedCapability, change: selectedChange })}`) : Promise.resolve(null),
-      api<Diagnostic[]>(`/diagnostics?${query({ change: selectedChange || undefined })}`),
-    ]).then(([list, nextDelta, nextDiagnostics]) => {
-      if (cancelled) return;
-      setFlows(list); setDiagnostics(nextDiagnostics);
-      setDelta(nextDelta);
+    setFlowLoading(true);
+    void (async () => {
+      const nextProject = await api<ProjectSnapshot>('/refresh');
+      if (!nextProject.changes.some((item) => item.name === selectedChange) && selectedChange) {
+        if (!cancelled) setSelectedChange('');
+        return;
+      }
+      if (![...nextProject.current, ...nextProject.proposed].some((item) => item.id === selectedCapability)) {
+        if (!cancelled) setSelectedCapability(nextProject.current[0]?.id ?? nextProject.proposed[0]?.id ?? null);
+        return;
+      }
+      const [list, nextDelta, nextDiagnostics, nextRelations, nextSuggestions, nextPending, nextGraphWorkspace, nextMapLayout] = await Promise.all([
+        api<FlowSummary[]>(`/flows?${query({ change: selectedChange || undefined })}`),
+        selectedChange ? api<DeltaFile>(`/delta?${query({ capability: selectedCapability, change: selectedChange })}`) : Promise.resolve(null),
+        api<Diagnostic[]>(`/diagnostics?${query({ change: selectedChange || undefined })}`),
+        api<Relations>('/relations'), api<Suggestion[]>('/suggestions'), api<PendingDraft[]>('/pending'),
+        api<GraphWorkspace>('/graph-workspace'), api<MapLayout>('/map-layout'),
+      ]);
       const matching = list.filter((item) => item.capability === selectedCapability);
       const ids = new Set(matching.map((item) => item.id));
       const chosen = ids.size === 1 ? matching.find((item) => item.scope === 'change') ?? matching[0] : undefined;
-      setFlowSelection(chosen ? `${chosen.scope}:${chosen.id}` : '');
-      if (!chosen && !dirtyRef.current) {
-        setFlow(ids.size === 0 && selectedChange ? emptyFlow(selectedCapability, 'main', selectedCapability) : null);
-        setFlowScope('change');
-      }
-    }).catch((failure) => setError(String(failure)));
+      const nextFlow = chosen ? await api<Flow>(`/flow?${query({ capability: selectedCapability, id: chosen.id, change: chosen.scope === 'change' ? selectedChange : undefined })}`)
+        : ids.size === 0 && selectedChange ? emptyFlow(selectedCapability, 'main', selectedCapability) : null;
+      if (cancelled) return;
+      if (dirtyRef.current) { setExternalChanged(true); setFlowLoading(false); return; }
+      setProject(nextProject); setFlows(list); setDelta(nextDelta); setDiagnostics(nextDiagnostics);
+      setRelations(nextRelations); setSuggestions(nextSuggestions); setPending(nextPending);
+      setGraphWorkspace(nextGraphWorkspace); setMapLayout(nextMapLayout);
+      setFlow(nextFlow); setFlowScope(chosen?.scope ?? 'change'); setSelectedCase(null);
+      setFlowLoading(false); setError('');
+    })().catch((failure) => { if (!cancelled) { setFlowLoading(false); setError(String(failure)); } });
     return () => { cancelled = true; };
-  }, [project, selectedCapability, selectedChange]);
-
-  useEffect(() => {
-    if (!selectedCapability || !selectedFlowSummary || !project || dirtyFlow) return;
-    let cancelled = false;
-    void api<Flow>(`/flow?${query({ capability: selectedCapability, id: selectedFlowSummary.id, change: selectedFlowSummary.scope === 'change' ? selectedChange : undefined })}`)
-      .then((next) => { if (!cancelled) { setFlow(next); setFlowScope(selectedFlowSummary.scope); setSelectedCase(null); } })
-      .catch((failure) => setError(String(failure)));
-    return () => { cancelled = true; };
-  }, [selectedCapability, flowSelection, selectedChange, project]);
+  }, [project?.root, selectedCapability, selectedChange, reloadVersion]);
 
   async function openProject(): Promise<void> {
     setBusy(true); setError(''); setMessage('');
@@ -130,8 +120,9 @@ export function App() {
       setGraphWorkspace(null);
       setMapLayout(null);
       setProject(next); setSelectedCapability(next.current[0]?.id ?? next.proposed[0]?.id ?? null);
-      setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowSelection(''); setDirtyFlow(false);
-      await loadSecondary();
+      dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false);
+      setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowLoading(true);
+      setReloadVersion((value) => value + 1);
       setMessage(`Project opened: ${next.root}`);
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
@@ -193,7 +184,7 @@ export function App() {
     try {
       const next = await post<ProjectSnapshot>('/change', { name });
       setProject(next); setSelectedChange(name); setNewChangeName(''); setPage('flow');
-      setFlow(null); setFlowSelection(''); setDirtyFlow(false);
+      dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false); setFlow(null); setFlowLoading(true);
       setMessage(`Change ${name} created. Edit this spec's flow, then complete the OpenSpec proposal, spec delta, and tasks.`); setError('');
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
@@ -205,7 +196,7 @@ export function App() {
     try {
       const result = await post<{ flow: Flow; backup: string }>('/flow/consolidate', { capability: selectedCapability, change: selectedChange });
       setFlows(await api<FlowSummary[]>(`/flows?${query({ change: selectedChange || undefined })}`));
-      setFlow(result.flow); setFlowScope('current'); setFlowSelection('current:main'); setDirtyFlow(false);
+      setFlow(result.flow); setFlowScope('current'); dirtyRef.current = false; setDirtyFlow(false);
       setMessage(`Existing flows combined. Original files backed up at ${result.backup}`); setError('');
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
@@ -213,11 +204,12 @@ export function App() {
 
   async function saveCurrentFlow(): Promise<void> {
     if (!flow || !selectedChange) return;
+    if (externalChanged && !window.confirm('The flow changed on disk. Save your local edits over that version?')) return;
     setBusy(true);
     try {
       const result = await put<{ flow: Flow; scope: 'current' | 'change'; diagnostics: Diagnostic[] }>('/flow', { flow, change: selectedChange || undefined });
-      setFlow(result.flow); setFlowScope(result.scope); setFlowSelection(`${result.scope}:${flow.id}`);
-      setDirtyFlow(false); setExternalChanged(false); setDiagnostics(result.diagnostics);
+      setFlow(result.flow); setFlowScope(result.scope);
+      dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false); setDiagnostics(result.diagnostics);
       setFlows(await api<FlowSummary[]>(`/flows?${query({ change: selectedChange || undefined })}`));
       setMessage(result.scope === 'change' ? 'Graph draft saved in the change.' : 'Layout saved in the current graph.'); setError('');
     } catch (failure) { setError(String(failure)); }
@@ -231,7 +223,7 @@ export function App() {
         const result = await post<{ files: string[] }>('/reconcile', { change: item.change, archived: item.archived });
         setMessage(`Graphs reconciled: ${result.files.join(', ')}`);
         setPending(await api<PendingDraft[]>('/pending'));
-        await refresh();
+        refresh();
       } else {
         const result = await post<{ diagnostics: Diagnostic[]; files: string[] }>('/preflight', { change: item.change, archived: item.archived });
         setDiagnostics(result.diagnostics); setMessage(result.diagnostics.length ? `${result.diagnostics.length} issues to review.` : `Preflight passed for ${item.change}.`);
@@ -243,12 +235,19 @@ export function App() {
 
   function selectCapability(id: string): void {
     if (dirtyFlow && !window.confirm('You have unsaved changes. Switch capability?')) return;
-    setSelectedCapability(id); setFlow(null); setFlowSelection(''); setDirtyFlow(false);
+    dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false);
+    setSelectedCapability(id); setFlow(null); setFlowLoading(true);
     setSelectedCase(null); setError('');
   }
 
   function selectGraphCase(id: string | null): void {
     setSelectedCase(id);
+  }
+
+  function loadVersionOnDisk(): void {
+    if (dirtyRef.current && !window.confirm('Discard unsaved graph edits and load the version on disk?')) return;
+    dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false);
+    refresh();
   }
 
   function renderSpecConnector(capability: CapabilityInfo) {
@@ -293,7 +292,7 @@ export function App() {
     </dialog>
     {error ? <div className="banner error" role="alert">{error}<button onClick={() => setError('')}>×</button></div> : null}
     {message ? <div className="banner success">{message}<button onClick={() => setMessage('')}>×</button></div> : null}
-    {externalChanged ? <div className="banner warning">OpenSpec files changed. Your unsaved graph edits are still here. <button onClick={() => { setExternalChanged(false); void refresh(); }}>Refresh data</button></div> : null}
+    {externalChanged ? <div className="banner warning" role="status">OpenSpec files changed on disk. Your unsaved graph edits are preserved. <button onClick={loadVersionOnDisk}>Load version on disk</button></div> : null}
     {!project ? <main className="welcome"><span className="eyebrow">LOCAL WORKSPACE</span><h1>See what your specs describe.</h1><p>Open a folder containing <code>openspec/</code> to explore capabilities, relationships, and flows. Browsing does not change any files.</p><div className="welcome-card">Enter a project path in the bar above to get started.</div></main> :
       <div className="workspace">
         <aside className="sidebar">
@@ -301,16 +300,16 @@ export function App() {
           {graphWorkspace?.initialized === false ? <div className="graph-setup"><strong>Graph workspace is not initialized</strong><small>Create <code>openspec/graph/</code> to store project relationships and flows. Select a change first.</small><button onClick={() => void initializeGraphWorkspace()} disabled={busy || !selectedChange}>Initialize graph workspace</button></div> : null}
           <div className="sidebar-controls"><input placeholder="Search specs…" value={search} onChange={(event) => setSearch(event.target.value)} /><label className="checkline"><input type="checkbox" checked={focus} onChange={(event) => setFocus(event.target.checked)} /> Connected only</label></div>
           <div className="capability-list">{capabilityIds.filter((id) => id.toLowerCase().includes(search.toLowerCase())).map((id) => <button key={id} className={selectedCapability === id ? 'active' : ''} onClick={() => selectCapability(id)}><span className="cap-dot" />{id}{!project.current.some((item) => item.id === id) ? <em>new</em> : null}</button>)}</div>
-          <div className="sidebar-footer"><label>Active change<select value={selectedChange} onChange={(event) => { if (dirtyFlow && !window.confirm('You have unsaved changes. Switch change?')) return; setSelectedChange(event.target.value); setFlow(null); setFlowSelection(''); setDirtyFlow(false); }}><option value="">None</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Select a change or create one in the Flow view before making edits.</small></div>
+          <div className="sidebar-footer"><label>Active change<select value={selectedChange} onChange={(event) => { if (dirtyFlow && !window.confirm('You have unsaved changes. Switch change?')) return; dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false); setSelectedChange(event.target.value); setFlow(null); setFlowLoading(true); }}><option value="">None</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Select a change or create one in the Flow view before making edits.</small></div>
         </aside>
         <main className="main-panel">
           <div className="view-header"><div><span className="eyebrow">{page === 'map' ? 'ONE CAPABILITY PER SPEC' : 'BEHAVIOR'}</span><h1>{page === 'map' ? 'Specification map' : selectedCapability ?? 'Flows'}</h1>{page === 'map' ? <small className="map-help">{selectedChange ? 'Drag spec cards to reposition them. Positions save automatically.' : 'Select or create a change to move spec cards.'}</small> : null}</div><div className="view-actions">{page === 'map' && mapLayout && Object.keys(mapLayout.positions).length ? <button className="quiet" onClick={() => void resetMapPositions()} disabled={mapSaving || !selectedChange}>Reset positions</button> : null}<div className="tabs"><button className={page === 'map' ? 'active' : ''} onClick={() => setPage('map')}>Map</button><button className={page === 'flow' ? 'active' : ''} onClick={() => setPage('flow')}>Flow</button></div></div></div>
           {page === 'map' ? mapLayout ? <MapView key={`${project.root}:${mapLayoutRevision}`} project={project} relations={relations.edges} suggestions={suggestions} selected={selectedCapability} onSelect={selectCapability} search={search} focus={focus} savedPositions={mapLayout.positions} saving={mapSaving} editable={!!selectedChange} onMove={moveMapNode} /> : <div className="empty-canvas">Loading map…</div> :
             <div className="flow-page"><div className="flow-selection"><div className="flow-identity"><strong>{selectedCapability ?? 'Select a spec'}</strong><small>One flow for this spec · {selectedChange ? `Change: ${selectedChange}` : 'Select or create a change to edit'}</small></div>
-              {flow && !needsConsolidation ? <><span className={`pill ${flowScope === 'change' ? 'amber' : ''}`}>{flowScope === 'change' ? 'DRAFT' : 'CURRENT'}</span><button onClick={() => void saveCurrentFlow()} disabled={!dirtyFlow || !selectedChange || busy}>Save flow</button></> : null}</div>
+              {flow && !needsConsolidation && !flowLoading ? <><span className={`pill ${flowScope === 'change' ? 'amber' : ''}`}>{flowScope === 'change' ? 'DRAFT' : 'CURRENT'}</span><button onClick={() => void saveCurrentFlow()} disabled={!dirtyFlow || !selectedChange || busy}>Save flow</button></> : null}</div>
               <div className="change-create"><label>New change <input placeholder="e.g. improve-login" value={newChangeName} onChange={(event) => setNewChangeName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createChange(); }} /></label><button onClick={() => void createChange()} disabled={!newChangeName.trim() || busy}>Create change</button></div>
-              {needsConsolidation ? <div className="flow-legacy"><h2>Combine existing flows for this spec</h2><p>This project has {legacyFlowIds.length} older flows for {selectedCapability}. Combine them into one graph before editing. Original YAML files are backed up.</p><button onClick={() => void consolidateCurrentFlows()} disabled={busy || !selectedChange}>Combine flows</button>{!selectedChange ? <p>Select or create a change first.</p> : null}</div> : flow ? <FlowEditor key={`${selectedCapability}:${selectedChange}`} flow={flow} project={project} change={selectedChange} editable={!!selectedChange} dirty={dirtyFlow} saving={busy} onSave={() => void saveCurrentFlow()} selectedCase={selectedCase} onSelectCase={selectGraphCase} onChange={(next) => { setFlow(next); setDirtyFlow(true); }} /> : <div className="empty-canvas"><h2>No flow yet</h2><p>Create or select a change to start this spec's single flow.</p></div>}
-              {selectedChange && delta ? <section className="flow-delta-editor"><h3>Proposed OpenSpec behavior</h3><p>Read only in Chart. Use <code>opsx-chart-graph-to-spec</code> to reconcile scenarios in this change.</p><small className="source-path">{delta.path}</small><pre className="delta-preview">{delta.content || 'No spec delta yet. Run the Chart skill to create one.'}</pre><button className="quiet" onClick={() => void post('/openspec-validate', { change: selectedChange }).then(() => setMessage('OpenSpec change is valid.')).catch((failure) => setError(String(failure)))}>Validate OpenSpec</button></section> : null}
+              {flowLoading ? <div className="empty-canvas" role="status">Loading flow…</div> : needsConsolidation ? <div className="flow-legacy"><h2>Combine existing flows for this spec</h2><p>This project has {legacyFlowIds.length} older flows for {selectedCapability}. Combine them into one graph before editing. Original YAML files are backed up.</p><button onClick={() => void consolidateCurrentFlows()} disabled={busy || !selectedChange}>Combine flows</button>{!selectedChange ? <p>Select or create a change first.</p> : null}</div> : flow ? <FlowEditor key={`${selectedCapability}:${selectedChange}`} flow={flow} project={project} change={selectedChange} editable={!!selectedChange} dirty={dirtyFlow} saving={busy} onSave={() => void saveCurrentFlow()} selectedCase={selectedCase} onSelectCase={selectGraphCase} onChange={(next) => { dirtyRef.current = true; setFlow(next); setDirtyFlow(true); }} /> : <div className="empty-canvas"><h2>No flow yet</h2><p>Create or select a change to start this spec's single flow.</p></div>}
+              {selectedChange && delta && !flowLoading ? <section className="flow-delta-editor"><h3>Proposed OpenSpec behavior</h3><p>Read only in Chart. Use <code>opsx-chart-graph-to-spec</code> to reconcile scenarios in this change.</p><small className="source-path">{delta.path}</small><pre className="delta-preview">{delta.content || 'No spec delta yet. Run the Chart skill to create one.'}</pre><button className="quiet" onClick={() => void post('/openspec-validate', { change: selectedChange }).then(() => setMessage('OpenSpec change is valid.')).catch((failure) => setError(String(failure)))}>Validate OpenSpec</button></section> : null}
             </div>}
         </main>
         <aside className="inspector"><div className="inspector-heading"><span className="eyebrow">SPEC AND CONNECTIONS</span><h2>{selectedCapability ?? 'Select a spec'}</h2></div>
@@ -323,7 +322,7 @@ export function App() {
                 {selectedChange ? <div className="add-relation"><select value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as Relation['type'])}><option value="depends-on">depends on</option><option value="invokes">invokes</option><option value="emits-to">emits to</option><option value="shares-data-with">shares data with</option></select><select value={relationshipTarget} onChange={(event) => setRelationshipTarget(event.target.value)}><option value="">Target…</option>{capabilityIds.filter((id) => id !== selectedCapability).map((id) => <option key={id} value={id}>{id}</option>)}</select><button onClick={() => void addRelationship()} disabled={!relationshipTarget}>Add</button></div> : <p className="muted">Select or create a change to edit spec relationships.</p>}
                 {suggestions.filter((item) => item.source === selectedCapability || item.target === selectedCapability).map((item, index) => <div className="suggestion" key={index}><span>Possible link to {item.source === selectedCapability ? item.target : item.source} · {item.change}</span><button className="quiet" onClick={() => setRelationshipTarget(item.source === selectedCapability ? item.target : item.source)}>Choose target</button></div>)}
               </section>
-              <section><h3>Diagnostics</h3>{[...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].length ? [...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.code}-${index}`}><strong>{item.code}</strong><span>{item.message}</span>{item.candidate ? <small>Use <code>opsx-chart-graph-to-spec</code> to review the suggested scenario reference.</small> : null}</div>) : <p className="muted">No issues found.</p>}</section>
+              <section><h3>Diagnostics</h3>{flowLoading ? <p className="muted">Loading diagnostics…</p> : visibleDiagnostics.length ? visibleDiagnostics.map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.code}-${index}`}><strong>{item.code}</strong><span>{item.message}</span>{item.candidate ? <small>Use <code>opsx-chart-graph-to-spec</code> to review the suggested scenario reference.</small> : null}</div>) : <p className="muted">No issues found.</p>}</section>
               {pending.length ? <section><h3>Graphs to reconcile</h3>{pending.map((item) => <div className="pending" key={`${item.archived}-${item.change}`}><strong>{item.change}{item.archived ? ' · archived' : ''}</strong><small>{item.files.length} draft graph files</small><div className="inline-fields"><button className="quiet" onClick={() => void reconcile(item, false)}>Preflight</button><button onClick={() => void reconcile(item, true)} disabled={busy}>Reconcile</button></div></div>)}</section> : null}
             </div>
           </> : null}

@@ -7,11 +7,15 @@ Keep visual behavior drafts and OpenSpec scenario changes traceable through one 
 ## ADDED Requirements
 
 ### Requirement: Classify a graph edit before writing specifications
-The system SHALL distinguish presentation-only edits from behavioral edits and SHALL require a selected active OpenSpec change before saving a behavioral edit as a draft.
+The system SHALL distinguish presentation-only edits from behavioral edits and SHALL require a selected active OpenSpec change before any graph edit.
 
-#### Scenario: Layout edit needs no change proposal
-- **WHEN** a user changes only node positions or viewport settings
+#### Scenario: Layout edit needs no spec delta
+- **WHEN** a user with an active change changes only node positions or viewport settings
 - **THEN** the system saves the graph presentation without creating a spec delta
+
+#### Scenario: No change selected
+- **WHEN** a user has not selected an active OpenSpec change
+- **THEN** the workspace does not allow graph, map, or relationship edits
 
 #### Scenario: New branch needs a change proposal
 - **WHEN** a user adds a branch representing a new outcome
@@ -19,12 +23,12 @@ The system SHALL distinguish presentation-only edits from behavioral edits and S
 - **AND** it shows the OpenSpec scenario that must be added or updated before completion
 
 ### Requirement: Prepare a paired change for behavior edits
-For a behavioral graph edit, the system SHALL preserve the graph draft beside the change and provide a reviewable delta-spec draft or an explicit missing-scenario action; it SHALL NOT silently rewrite canonical `spec.md`.
+For a behavioral graph edit, the system SHALL preserve the graph draft beside the change and show its OpenSpec delta read only. A skill SHALL reconcile complete paths into the delta; saving the graph SHALL NOT silently rewrite canonical or delta `spec.md`.
 
 #### Scenario: New locked-account outcome
 - **WHEN** a user adds a locked-account outcome to a login flow
-- **THEN** the active change contains or requests a corresponding OpenSpec scenario delta
-- **AND** the user can compare the proposed path and scenario before accepting either
+- **THEN** the graph draft is saved in the active change
+- **AND** the user can use the graph-to-spec skill to create or update the corresponding scenario delta
 
 ### Requirement: Detect changes to linked scenario text
 The system SHALL detect when a linked requirement or scenario is renamed, removed, or textually changed outside the graph editor and mark the affected path for review.
@@ -57,7 +61,7 @@ The system SHALL keep a graph draft discoverable and report incomplete reconcili
 - **THEN** the workspace reports the remaining graph draft and offers a reviewable recovery action
 
 ### Requirement: Support assistant guidance without making it authoritative
-The system SHALL expose deterministic read, validate, and draft operations that assistant skills can use to propose scenario text from a path or a path update from scenario text; generated proposals SHALL require review before saving.
+The system SHALL expose deterministic read, validate, and draft operations that assistant skills can use to reconcile scenario text from a path or propose a path update from scenario text; generated changes SHALL remain reviewable.
 
 #### Scenario: Assistant drafts a scenario from a branch
 - **WHEN** an assistant skill receives a new graph branch and its linked requirement context

@@ -39,7 +39,9 @@ The app exposes one flow per capability. A new capability starts with the flow I
 
 ## Editing and reconciliation
 
-Select an active change before any app edit, including graph workspace setup, map positions, relationships, legacy flow consolidation, and flow behavior. The server requires a valid active change on those write endpoints. Node position and viewport changes save as layout in the current graph; node, edge, WHEN, and THEN changes save as drafts under the change's `graph/` directory. Map positions and UI relationship edits also save to the current graph after the change gate. Case-to-scenario links and delta Markdown are maintained by the skills. Each map capability corresponds to one OpenSpec spec ID. The inspector shows the associated spec document and relationships; the flow editor shows node behavior beside linked OpenSpec scenario text. When Markdown changes outside the app, the workspace refreshes while preserving unsaved graph edits for review.
+Select an active change before any app edit, including graph workspace setup, map positions, relationships, legacy flow consolidation, and flow behavior. The server requires a valid active change on those write endpoints. Node position and viewport changes save as layout in the current graph; node, edge, WHEN, and THEN changes save as drafts under the change's `graph/` directory. Map positions and UI relationship edits also save to the current graph after the change gate. Case-to-scenario links and delta Markdown are maintained by the skills. Each map capability corresponds to one OpenSpec spec ID. The inspector shows the associated spec document and relationships; the flow editor shows node behavior beside linked OpenSpec scenario text.
+
+The API watches `openspec/` and sends file events to the client. With no unsaved graph edits, the client reloads the selected YAML flow, OpenSpec snapshot and delta, diagnostics, and graph metadata in one state update. It shows a loading state until the flow arrives. With unsaved edits, it retains the local graph and offers an explicit action to discard those edits and load the disk version. `test/app-refresh.test.tsx` covers a change left open while its flow draft and spec delta change externally, including the disappearance of stale path and diagnostic warnings.
 
 To complete a paired change:
 
@@ -61,4 +63,4 @@ npm run --silent cli -- combine-flows --root /path/to/project --capability authe
 npm run --silent cli -- pending --root /path/to/project
 ```
 
-Run `npm run typecheck` and `npm test` to verify the implementation. Integration tests copy `test/fixtures/project` and do not alter it. The initial implementation is tracked in `openspec/changes/initial-visual-spec-workspace/`.
+Run `npm run typecheck` and `npm test` to verify the implementation. Integration tests copy `test/fixtures/project` and do not alter it. The first release's canonical requirements live in `openspec/specs/`; the completed planning change is archived under `openspec/changes/archive/2026-10-08-initial-visual-spec-workspace/`.
