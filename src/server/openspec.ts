@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import type { ScenarioRef, ScenarioLookup } from '../shared/model.js';
@@ -84,6 +85,13 @@ export async function runOpenSpec(root: string, args: string[]): Promise<unknown
   }
 }
 
+export async function createOpenSpecChange(root: string, name: string): Promise<ProjectSnapshot> {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) throw new Error('Change names must use lowercase letters, numbers, and hyphens');
+  const projectRoot = await resolveProjectRoot(root);
+  await runOpenSpec(projectRoot, ['new', 'change', name, '--json']);
+  return projectSnapshot(projectRoot);
+}
+
 export async function validateOpenSpecChange(root: string, change: string): Promise<unknown> {
   const result = requireObject(await runOpenSpec(root, ['validate', change, '--strict', '--json']), 'validation');
   const items = requireArray(result.items, 'validation items');
@@ -156,6 +164,8 @@ export async function projectSnapshot(directory: string): Promise<ProjectSnapsho
   });
   const proposed: CapabilityInfo[] = [];
   for (const change of changes) {
+    try { await fs.access(path.join(root, 'openspec', 'changes', change.name, 'proposal.md')); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
     const detail = requireObject(await runOpenSpec(root, ['show', change.name, '--type', 'change', '--json']), 'change detail');
     const grouped = new Map<string, { requirements: RequirementInfo[]; operation: string }>();
     for (const item of requireArray(detail.deltas, 'change deltas')) {

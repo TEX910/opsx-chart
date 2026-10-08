@@ -3,9 +3,10 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import YAML from 'yaml';
 import { emptyFlow, flowPaths, flowWouldCycle, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
-import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
-import { graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations } from '../src/server/graph-store.js';
+import { createOpenSpecChange, projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
+import { consolidateFlows, graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations } from '../src/server/graph-store.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
 let root: string;
@@ -36,6 +37,41 @@ describe('OpenSpec project and graph coordination', () => {
     await saveRelations(root, relation);
     expect((await initGraphWorkspace(root)).created).toBe(false);
     expect(await loadRelations(root)).toEqual(relation);
+  });
+
+  it('creates a change through OpenSpec for the single-flow editing workflow', async () => {
+    const project = await createOpenSpecChange(root, 'one-flow-edit');
+    expect(project.changes.some((item) => item.name === 'one-flow-edit')).toBe(true);
+    expect(await fs.readFile(path.join(root, 'openspec/changes/one-flow-edit/.openspec.yaml'), 'utf8')).toContain('schema: spec-driven');
+    await expect(createOpenSpecChange(root, 'Invalid Name')).rejects.toThrow('Change names');
+    await saveFlow(root, { ...emptyFlow('authentication', 'main'), nodes: [{ id: 'start', type: 'event', label: 'Start', position: { x: 0, y: 0 } }] }, 'one-flow-edit');
+    await createOpenSpecChange(root, 'other-edit');
+    await expect(saveFlow(root, emptyFlow('authentication', 'alternate'), 'other-edit')).rejects.toThrow('already has a flow');
+  });
+
+  it('combines legacy flows without losing cases or their original files', async () => {
+    const original = (id: string) => ({ ...emptyFlow('authentication', id, id),
+      nodes: [
+        { id: 'start', type: 'event' as const, label: 'Start', position: { x: 0, y: 0 } },
+        { id: 'check', type: 'decision' as const, label: 'Check', whens: { branch: `${id} condition` }, position: { x: 200, y: 0 } },
+        { id: 'done', type: 'outcome' as const, label: 'Done', then: `${id} result`, position: { x: 400, y: 0 } },
+      ],
+      edges: [{ id: 'next', source: 'start', target: 'check' }, { id: 'branch', source: 'check', target: 'done' }],
+      cases: [{ id: 'case', name: id, edgeIds: ['next', 'branch'], scenario: { capability: 'authentication', requirement: 'Sign in', scenario: 'Valid credentials', scope: 'current' as const } }],
+    });
+    for (const id of ['login', 'logout']) {
+      const file = graphPath(root, `flows/authentication/${id}.yaml`);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, YAML.stringify(original(id)));
+    }
+    await expect(saveFlow(root, emptyFlow('authentication', 'other'), 'adjust-login')).rejects.toThrow('Combine existing flows');
+    const { flow, backup } = await consolidateFlows(root, 'authentication');
+    expect((await listFlows(root)).filter((item) => item.capability === 'authentication').map((item) => item.id)).toEqual(['main']);
+    expect(flow.cases).toHaveLength(2);
+    expect(flow.cases.map((item) => pathBehavior(flow, item.edgeIds).complete)).toEqual([true, true]);
+    expect(await fs.readFile(path.join(backup, 'login.yaml'), 'utf8')).toContain('id: login');
+    expect(await fs.readFile(path.join(backup, 'logout.yaml'), 'utf8')).toContain('id: logout');
+    await expect(fs.stat(graphPath(root, 'flows/authentication/login.yaml'))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('persists map positions separately from capability relationships and resets them', async () => {
@@ -168,6 +204,21 @@ describe('OpenSpec project and graph coordination', () => {
     expect(validateFlow(flow).some((item) => item.code === 'unlabeled-branch')).toBe(false);
     expect(flowWouldCycle(flow, 'account', 'credentials')).toBe(true);
     expect(validateFlow({ ...flow, edges: [...flow.edges, { id: 'back', source: 'account', target: 'credentials' }] }).some((item) => item.code === 'flow-cycle')).toBe(true);
+  });
+
+  it('allows a Decision WHEN to pass through an Action before the Outcome THEN', () => {
+    const flow = { ...emptyFlow('authentication', 'main'),
+      nodes: [
+        { id: 'start', type: 'event' as const, label: 'Start', position: { x: 0, y: 0 } },
+        { id: 'check', type: 'decision' as const, label: 'Eligible?', whens: { yes: 'the member is eligible' }, position: { x: 200, y: 0 } },
+        { id: 'record', type: 'action' as const, label: 'Record approval', position: { x: 400, y: 0 } },
+        { id: 'done', type: 'outcome' as const, label: 'Approved', then: 'the member sees approval', position: { x: 600, y: 0 } },
+      ],
+      edges: [{ id: 'begin', source: 'start', target: 'check' }, { id: 'yes', source: 'check', target: 'record' }, { id: 'finish', source: 'record', target: 'done' }],
+    };
+    expect(validateFlow(flow).filter((item) => item.severity === 'error')).toEqual([]);
+    expect(flowPaths(flow)).toEqual([['begin', 'yes', 'finish']]);
+    expect(pathBehavior(flow, flowPaths(flow)[0])).toEqual({ whens: ['the member is eligible'], then: 'the member sees approval', complete: true });
   });
 
   it('does not accept an invalid OpenSpec validation payload as success', async () => {

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { projectSnapshot, scenarioLookup, validateOpenSpecChange } from './server/openspec.js';
-import { initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, validateGraph } from './server/graph-store.js';
+import { consolidateFlows, initGraphWorkspace, listFlows, loadFlow, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, saveFlow, validateGraph } from './server/graph-store.js';
 import { pathBehavior, validateFlow } from './shared/model.js';
 
 const [command, ...tokens] = process.argv.slice(2);
@@ -52,6 +52,7 @@ async function main(): Promise<void> {
       `  validate [--change ID] [--root PATH]      Graph and optional OpenSpec validation\n` +
       `  pending [--root PATH]                    Unreconciled graph drafts\n` +
       `  save-flow --file PATH --change ID [--root PATH]\n` +
+      `  combine-flows --capability ID [--root PATH]  Merge legacy flows into one backed-up graph\n` +
       `  preflight --change ID [--archived] [--root PATH]\n` +
       `  reconcile --change ID [--archived] [--root PATH]\n` +
       `  scenario-template --capability ID --requirement NAME --scenario NAME [--change ID] [--root PATH]\n`);
@@ -71,8 +72,10 @@ async function main(): Promise<void> {
     const relations = await loadRelations(root);
     const flows = (await listFlows(root, change)).filter((item) => item.capability === capability);
     const flowId = option('flow');
+    const ids = new Set(flows.map((item) => item.id));
     const selected = flowId ? flows.find((item) => item.id === flowId && item.scope === 'change')
-      ?? flows.find((item) => item.id === flowId && item.scope === 'current') : undefined;
+      ?? flows.find((item) => item.id === flowId && item.scope === 'current')
+      : ids.size === 1 ? flows.find((item) => item.scope === 'change') ?? flows[0] : undefined;
     if (flowId && !selected) throw new Error(`Flow not found: ${capability}/${flowId}`);
     const flow = selected ? await loadFlow(root, capability, selected.id, selected.scope === 'change' ? change : undefined) : undefined;
     print({ capability: specs, relations: relations.edges.filter((item) => item.source === capability || item.target === capability), flows, flow,
@@ -93,6 +96,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === 'pending') { print(await pendingDrafts(root)); return; }
+  if (command === 'combine-flows') { print(await consolidateFlows(root, required('capability'))); return; }
   if (command === 'save-flow') {
     const text = await fs.readFile(required('file'), 'utf8');
     print(await saveFlow(root, YAML.parse(text), required('change')));

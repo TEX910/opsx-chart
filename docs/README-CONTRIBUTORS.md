@@ -33,7 +33,9 @@ The map stores manually dragged capability positions in `openspec/graph/map-layo
 
 Graph files do not generate spec Markdown automatically. The `opsx-chart-graph-to-spec` skill reads the node descriptors along a case path and writes the corresponding WHEN/AND/THEN scenario in the active change's spec delta. A new case may set `pendingSpec: true` until that scenario exists. For older flows without node descriptors, the UI shows text from linked scenarios next to empty WHEN/THEN fields and lets the user copy it into the node. The scenario becomes normative after review and OpenSpec sync. The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed until confirmed.
 
-The flow editor treats a Decision's outgoing edges as its WHEN list. Each branch points to an Outcome or another Decision; branch labels are optional because the WHEN descriptor names the condition. `flowPaths` discovers acyclic Event-to-Outcome routes for case linking, and `pathBehavior` collects each traversed Decision WHEN in route order plus the final Outcome THEN. Skills emit the first condition as WHEN and later conditions as AND.
+The flow editor treats a Decision's outgoing edges as its WHEN list. Each branch points to an Action, another Decision, or an Outcome. Actions may point to Outcomes and do not add condition text. Branch labels are optional because the WHEN descriptor names the condition. `flowPaths` discovers acyclic Event-to-Outcome routes for scenario linking, and `pathBehavior` collects each traversed Decision WHEN in route order plus the final Outcome THEN. Skills emit the first condition as WHEN and later conditions as AND.
+
+The app exposes one flow per capability. A new capability starts with the flow ID `main`; an existing single flow keeps its ID across change drafts. `saveFlow` refuses a second flow ID. Legacy projects with several canonical flows can use **Combine flows**, which merges nodes, edges, cases, and positions into `main.yaml` and backs up each original under `openspec/graph/legacy-flows/`. It refuses to run while affected graph drafts are pending. The UI creates a new OpenSpec change with `openspec new change --json` before graph editing; the change's planning artifacts still follow the normal OpenSpec workflow.
 
 ## Editing and reconciliation
 
@@ -55,6 +57,7 @@ Run `npm run --silent cli -- --help` for all commands. The CLI uses the same pro
 ```sh
 npm run --silent cli -- snapshot --root /path/to/project
 npm run --silent cli -- inspect --root /path/to/project --capability authentication --flow sign-in --change adjust-login
+npm run --silent cli -- combine-flows --root /path/to/project --capability authentication
 npm run --silent cli -- pending --root /path/to/project
 ```
 

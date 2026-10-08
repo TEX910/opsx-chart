@@ -4,10 +4,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  deleteFlow, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts,
+  consolidateFlows, deleteFlow, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts,
   preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations, validateGraph, digest,
 } from './graph-store.js';
-import { projectSnapshot, resolveProjectRoot, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
+import { createOpenSpecChange, projectSnapshot, resolveProjectRoot, validateOpenSpecChange, type ProjectSnapshot } from './openspec.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 function route(handler: Handler) {
@@ -62,6 +62,12 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
   app.get('/api/project', route(async (_req, res) => res.json(snapshot ?? { root: null })));
   app.post('/api/project', route(async (req, res) => res.json(await selectProject(input(req.body?.path, 'path')))));
   app.get('/api/refresh', route(async (_req, res) => res.json(await fresh())));
+  app.post('/api/change', route(async (req, res) => {
+    const name = input(req.body?.name, 'change name');
+    const next = await createOpenSpecChange(currentRoot(), name);
+    snapshot = next;
+    res.json(next);
+  }));
   app.get('/api/events', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -84,6 +90,7 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
     res.status(result.diagnostics.some((item) => item.severity === 'error') ? 422 : 200).json({ ...result, error: result.diagnostics.filter((item) => item.severity === 'error').map((item) => item.message).join('; ') || undefined });
   }));
   app.get('/api/flows', route(async (req, res) => res.json(await listFlows(currentRoot(), typeof req.query.change === 'string' ? req.query.change : undefined))));
+  app.post('/api/flow/consolidate', route(async (req, res) => res.json(await consolidateFlows(currentRoot(), input(req.body?.capability, 'capability')))));
   app.get('/api/flow', route(async (req, res) => {
     res.json(await loadFlow(currentRoot(), input(req.query.capability, 'capability'), input(req.query.id, 'flow ID'), typeof req.query.change === 'string' ? req.query.change : undefined));
   }));

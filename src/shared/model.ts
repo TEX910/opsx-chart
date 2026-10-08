@@ -207,7 +207,7 @@ export function validateFlow(flow: Flow, lookup?: ScenarioLookup): Diagnostic[] 
   for (const edge of flow.edges) {
     if (!nodes.has(edge.source) || !nodes.has(edge.target)) diagnostics.push({ severity: 'error', code: 'missing-node', message: `Edge ${edge.id} has a missing endpoint`, target: edge.id });
     if (nodes.get(edge.source)?.type === 'outcome') diagnostics.push({ severity: 'error', code: 'outcome-has-exit', message: `Outcome ${edge.source} cannot have an outgoing connection`, target: edge.id });
-    if (nodes.get(edge.source)?.type === 'decision' && !['decision', 'outcome'].includes(nodes.get(edge.target)?.type ?? '')) diagnostics.push({ severity: 'error', code: 'invalid-decision-target', message: `Decision branch ${edge.id} must lead to a Decision or Outcome`, target: edge.id });
+    if (nodes.get(edge.source)?.type === 'decision' && !['action', 'decision', 'outcome'].includes(nodes.get(edge.target)?.type ?? '')) diagnostics.push({ severity: 'error', code: 'invalid-decision-target', message: `Decision branch ${edge.id} must lead to an Action, Decision, or Outcome`, target: edge.id });
     if (flowWouldCycle(flow, edge.source, edge.target, edge.id)) diagnostics.push({ severity: 'error', code: 'flow-cycle', message: `Connection ${edge.id} creates a cycle`, target: edge.id });
   }
   for (const node of flow.nodes) {

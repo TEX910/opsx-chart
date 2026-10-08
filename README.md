@@ -11,7 +11,7 @@ On the specification map, drag capability cards to adjust their positions. The a
 | In the app | Meaning |
 | --- | --- |
 | **Capability** | One OpenSpec spec. Its details describe the spec and its connections to other capabilities, rather than listing WHEN/THEN cases. |
-| **Flow** | A behavior graph for a capability. It can contain events, actions, decisions, and outcomes. A capability can have multiple flows. |
+| **Flow** | The single behavior graph for a capability. It can contain events, actions, decisions, and outcomes. A change holds a draft version of this graph. |
 | **WHEN** | The condition on a branch leaving a **Decision** node. Each branch can have its own WHEN. |
 | **THEN** | The result on an **Outcome** node. |
 | **Case** | A complete path from an **Event** to an **Outcome**. It uses the WHEN statements on branches it crosses and the THEN on its outcome, and maps to an OpenSpec requirement scenario. |
@@ -22,17 +22,19 @@ For example, the “Valid” branch of a *Valid credentials?* decision might con
 
 The **active change** is the selected OpenSpec change, such as `adjust-login`. It collects the proposal, tasks, spec deltas, and graph drafts.
 
-A **draft flow** is the modified version of *one graph* inside that change. Editing a WHEN, THEN, node, or connection and clicking **Save flow** saves a graph draft in the change. The **current** flow stays as it was until the draft is reconciled. One change can contain several draft flows.
+A **draft flow** is the modified version of a capability's graph inside that change. Editing a WHEN, THEN, node, or connection and clicking **Save flow** saves a graph draft in the change. The **current** flow stays as it was until the draft is reconciled. A change may affect several capabilities, each with one flow.
 
 ## Edit a case
 
 1. Select a capability and open **Flow**. The right column shows its associated spec and a link to the Markdown source.
-2. Select an **Active change** before editing behavior. Open a draft flow, or edit the current flow to create a draft in the change.
-3. Select a **Decision** and click **Collapse graph to edit**. Its editor is a list of WHEN conditions, each with a destination. Choose an **Outcome** or another **Decision** for each WHEN. Use **Add WHEN** for another branch. Existing OpenSpec wording can be copied into an empty condition.
-4. Select an **Outcome** and write its **THEN**. A route through two or more Decisions keeps each WHEN in order.
-5. Under **Link a path**, select a complete Event-to-Outcome route found automatically from the graph, enter its scenario name and requirement, then click **Create case in flow** and **Save flow**.
+2. Select an **Active change**, or enter a name under **New change** and click **Create change**. This creates the OpenSpec change shell; its proposal, spec delta, and tasks still need to be planned and reviewed through the OpenSpec workflow.
+3. Select a **Decision** and click **Collapse graph to edit**. Its editor is a list of WHEN conditions. Each can lead to an **Action**, another **Decision**, or an **Outcome**. Use **Add WHEN** for another branch. An Action can lead to an Outcome.
+4. Select an **Outcome** and write its **THEN**. Actions between a Decision and Outcome remain steps in the path; a later Decision adds another condition.
+5. Under **Connect paths to spec scenarios**, choose an unlinked Event-to-Outcome route, enter the scenario name and requirement, then click **Create case in flow** and **Save flow**. This link tells the reconciliation skill which Markdown scenario to update; saving the graph does not write Markdown.
 
 You can create a case before its Markdown scenario exists. It will show as *pending reconciliation*. The `opsx-chart-graph-to-spec` skill reads the node statements and writes or updates the scenario in the change's spec delta. Saving the graph alone does not modify Markdown. After reviewing both, `opsx-chart-sync` synchronizes the spec and reconciles the graph; `opsx-chart-archive` closes the change.
+
+For projects created with older versions that have several flows for one capability, the Flow view offers **Combine flows**. It copies the original YAML files into `openspec/graph/legacy-flows/` before writing one combined graph. Pending graph drafts must be reconciled first.
 
 ## Run locally
 
@@ -69,7 +71,7 @@ To add only the graph workspace, click **Initialize graph workspace** in the app
 
 ### Try the demo
 
-Run `npm run demo` from this repository and open **http://127.0.0.1:4317**. The demo loads `examples/demo-project/` with two connected capabilities, login and notification flows, and the `adjust-login` change. Select **authentication → Flow** to compare the current flow with its draft. Edits you save in the demo are written to `examples/demo-project/`.
+Run `npm run demo` from this repository and open **http://127.0.0.1:4317**. The demo loads `examples/demo-project/` with two connected capabilities, one flow for each capability, and the `adjust-login` change. Select **authentication → Flow** and choose the active change to view its draft. Edits you save in the demo are written to `examples/demo-project/`.
 
 ## Available skills
 

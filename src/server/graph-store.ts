@@ -157,12 +157,55 @@ export async function listFlows(root: string, change?: string): Promise<FlowSumm
   return result;
 }
 
+export async function consolidateFlows(root: string, capability: string): Promise<{ flow: Flow; backup: string }> {
+  checkId(capability, 'capability', safeCapability);
+  const summaries = (await listFlows(root)).filter((item) => item.capability === capability);
+  if (summaries.length < 2) throw new Error(`There are no multiple flows to combine for ${capability}`);
+  const activeDraft = (await pendingDrafts(root)).find((item) => item.files.some((file) => file.startsWith(`flows/${capability}/`)));
+  if (activeDraft) throw new Error(`Reconcile or remove graph drafts in ${activeDraft.change} before combining flows for ${capability}`);
+  const originals = await Promise.all(summaries.map(async (item) => ({
+    item, text: await fs.readFile(graphPath(root, flowRelativePath(capability, item.id)), 'utf8'),
+    flow: await loadFlow(root, capability, item.id),
+  })));
+  const merged = emptyFlow(capability, 'main', capability);
+  let offset = 0;
+  for (const { item, flow } of originals) {
+    const edgeId = (id: string) => `${item.id}--${id}`;
+    const nodeId = (id: string) => `${item.id}--${id}`;
+    const xs = flow.nodes.map((node) => node.position.x);
+    const minX = Math.min(0, ...xs);
+    const maxX = Math.max(0, ...xs);
+    merged.nodes.push(...flow.nodes.map((node) => ({ ...node, id: nodeId(node.id), position: { ...node.position, x: node.position.x - minX + offset },
+      whens: node.whens ? Object.fromEntries(Object.entries(node.whens).map(([id, when]) => [edgeId(id), when])) : undefined })));
+    merged.edges.push(...flow.edges.map((edge) => ({ ...edge, id: edgeId(edge.id), source: nodeId(edge.source), target: nodeId(edge.target) })));
+    merged.cases.push(...flow.cases.map((item) => ({ ...item, id: `${flow.id}--${item.id}`, edgeIds: item.edgeIds.map(edgeId) })));
+    offset += maxX - minX + 350;
+  }
+  const project = await projectSnapshot(root);
+  const errors = validateFlow(merged, scenarioLookup(project)).filter((item) => item.severity === 'error');
+  if (errors.length) throw new Error(`Combined flow is invalid: ${errors.map((item) => item.message).join('; ')}`);
+  const backup = graphPath(root, path.join('legacy-flows', capability, randomUUID()));
+  for (const { item, text } of originals) await writeAtomic(path.join(backup, `${item.id}.yaml`), text);
+  await writeAtomic(graphPath(root, flowRelativePath(capability, 'main')), YAML.stringify(merged));
+  for (const { item } of originals) if (item.id !== 'main') await fs.rm(graphPath(root, flowRelativePath(capability, item.id)));
+  return { flow: merged, backup };
+}
+
 export async function saveFlow(root: string, value: unknown, change?: string, snapshot?: ProjectSnapshot): Promise<{ flow: Flow; scope: 'current' | 'change'; diagnostics: Diagnostic[] }> {
   const flow = FlowSchema.parse(value);
   const relative = flowRelativePath(flow.capability, flow.id);
   const project = snapshot ?? await projectSnapshot(root);
   if (![...project.current, ...project.proposed].some((item) => item.id === flow.capability)) throw new Error(`Capability does not exist: ${flow.capability}`);
   if (change && !project.changes.some((item) => item.name === change)) throw new Error(`Active OpenSpec change does not exist: ${change}`);
+  const existingIds = new Set((await listFlows(root, change)).filter((item) => item.capability === flow.capability).map((item) => item.id));
+  if (existingIds.size > 1) throw new Error(`Combine existing flows for ${flow.capability} before editing`);
+  for (const item of project.changes) {
+    if (item.name === change) continue;
+    const draftFiles = await walkYaml(graphPath(root, path.join('flows', flow.capability), item.name));
+    for (const file of draftFiles) if (!file.includes(path.sep)) existingIds.add(file.slice(0, -'.yaml'.length));
+  }
+  if (existingIds.size > 1) throw new Error(`This capability has conflicting flow IDs across changes: ${[...existingIds].join(', ')}`);
+  if (existingIds.size === 1 && !existingIds.has(flow.id)) throw new Error(`This capability already has a flow: ${[...existingIds][0]}`);
   const canonicalPath = graphPath(root, relative);
   const canonicalText = await readText(canonicalPath);
   const canonical = canonicalText === null ? null : FlowSchema.parse(YAML.parse(canonicalText));
