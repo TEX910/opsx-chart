@@ -9,7 +9,7 @@ import { FlowEditor } from './FlowEditor.js';
 type FlowSummary = { capability: string; id: string; name: string; scope: 'current' | 'change'; change?: string };
 type Suggestion = { source: string; target: string; change: string };
 type PendingDraft = { change: string; archived: boolean; files: string[] };
-type DeltaFile = { path: string; content: string; digest: string | null };
+type DeltaFile = { path: string; content: string };
 type GraphWorkspace = { path: string; initialized: boolean };
 
 const query = (values: Record<string, string | undefined>) => new URLSearchParams(Object.entries(values).filter((entry): entry is [string, string] => typeof entry[1] === 'string')).toString();
@@ -42,15 +42,11 @@ export function App() {
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [pending, setPending] = useState<PendingDraft[]>([]);
   const [delta, setDelta] = useState<DeltaFile | null>(null);
-  const [deltaText, setDeltaText] = useState('');
-  const [deltaDirty, setDeltaDirty] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const dirtyRef = useRef(false);
-  const deltaDirtyRef = useRef(false);
-  useEffect(() => { dirtyRef.current = dirtyFlow || deltaDirty; }, [dirtyFlow, deltaDirty]);
-  useEffect(() => { deltaDirtyRef.current = deltaDirty; }, [deltaDirty]);
+  useEffect(() => { dirtyRef.current = dirtyFlow; }, [dirtyFlow]);
 
   const currentCapability = project?.current.find((item) => item.id === selectedCapability);
   const proposedCapability = project?.proposed.find((item) => item.id === selectedCapability && item.change === selectedChange);
@@ -105,7 +101,7 @@ export function App() {
     ]).then(([list, nextDelta, nextDiagnostics]) => {
       if (cancelled) return;
       setFlows(list); setDiagnostics(nextDiagnostics);
-      if (!deltaDirtyRef.current) { setDelta(nextDelta); setDeltaText(nextDelta?.content ?? ''); setDeltaDirty(false); }
+      setDelta(nextDelta);
       const matching = list.filter((item) => item.capability === selectedCapability);
       const ids = new Set(matching.map((item) => item.id));
       const chosen = ids.size === 1 ? matching.find((item) => item.scope === 'change') ?? matching[0] : undefined;
@@ -134,7 +130,7 @@ export function App() {
       setGraphWorkspace(null);
       setMapLayout(null);
       setProject(next); setSelectedCapability(next.current[0]?.id ?? next.proposed[0]?.id ?? null);
-      setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false);
+      setSelectedChange(next.current.length ? '' : next.changes[0]?.name ?? ''); setFlow(null); setFlowSelection(''); setDirtyFlow(false);
       await loadSecondary();
       setMessage(`Project opened: ${next.root}`);
     } catch (failure) { setError(String(failure)); }
@@ -142,9 +138,10 @@ export function App() {
   }
 
   async function initializeGraphWorkspace(): Promise<void> {
+    if (!selectedChange) { setError('Create or select an OpenSpec change before modifying this project.'); return; }
     setBusy(true);
     try {
-      const result = await post<{ root: string; path: string; created: boolean }>('/graph-workspace', {});
+      const result = await post<{ root: string; path: string; created: boolean }>('/graph-workspace', { change: selectedChange });
       setGraphWorkspace({ path: result.path, initialized: true });
       setMessage(result.created ? `Graph workspace created: ${result.path}` : `Graph workspace already exists: ${result.path}`);
       setError('');
@@ -153,16 +150,18 @@ export function App() {
   }
 
   async function saveRelationship(next: Relations): Promise<void> {
+    if (!selectedChange) { setError('Create or select an OpenSpec change before modifying relationships.'); return; }
     try {
-      const result = await put<{ relations: Relations; diagnostics: Diagnostic[] }>('/relations', next);
+      const result = await put<{ relations: Relations; diagnostics: Diagnostic[] }>('/relations', { change: selectedChange, relations: next });
       setRelations(result.relations); setDiagnostics(result.diagnostics); setMessage('Relations saved.'); setError('');
     } catch (failure) { setError(String(failure)); }
   }
 
   async function moveMapNode(id: string, position: MapPosition): Promise<void> {
+    if (!selectedChange) { setError('Create or select an OpenSpec change before moving capabilities.'); return; }
     setMapSaving(true);
     try {
-      const next = await put<MapLayout>('/map-layout', { capability: id, position });
+      const next = await put<MapLayout>('/map-layout', { capability: id, position, change: selectedChange });
       setMapLayout(next);
       setMessage(`Position saved for ${id}.`); setError('');
     } catch (failure) { setError(String(failure)); }
@@ -170,9 +169,10 @@ export function App() {
   }
 
   async function resetMapPositions(): Promise<void> {
+    if (!selectedChange) { setError('Create or select an OpenSpec change before resetting positions.'); return; }
     setMapSaving(true);
     try {
-      setMapLayout(await remove<MapLayout>('/map-layout', {}));
+      setMapLayout(await remove<MapLayout>('/map-layout', { change: selectedChange }));
       setMapLayoutRevision((value) => value + 1);
       setMessage('Automatic map layout restored.'); setError('');
     } catch (failure) { setError(String(failure)); }
@@ -188,22 +188,22 @@ export function App() {
   async function createChange(): Promise<void> {
     const name = newChangeName.trim();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) { setError('Change names must use lowercase letters, numbers, and hyphens.'); return; }
-    if ((dirtyFlow || deltaDirty) && !window.confirm('You have unsaved changes. Create a new change?')) return;
+    if (dirtyFlow && !window.confirm('You have unsaved changes. Create a new change?')) return;
     setBusy(true);
     try {
       const next = await post<ProjectSnapshot>('/change', { name });
       setProject(next); setSelectedChange(name); setNewChangeName(''); setPage('flow');
-      setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false);
+      setFlow(null); setFlowSelection(''); setDirtyFlow(false);
       setMessage(`Change ${name} created. Edit this spec's flow, then complete the OpenSpec proposal, spec delta, and tasks.`); setError('');
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
   }
 
   async function consolidateCurrentFlows(): Promise<void> {
-    if (!selectedCapability) return;
+    if (!selectedCapability || !selectedChange) return;
     setBusy(true);
     try {
-      const result = await post<{ flow: Flow; backup: string }>('/flow/consolidate', { capability: selectedCapability });
+      const result = await post<{ flow: Flow; backup: string }>('/flow/consolidate', { capability: selectedCapability, change: selectedChange });
       setFlows(await api<FlowSummary[]>(`/flows?${query({ change: selectedChange || undefined })}`));
       setFlow(result.flow); setFlowScope('current'); setFlowSelection('current:main'); setDirtyFlow(false);
       setMessage(`Existing flows combined. Original files backed up at ${result.backup}`); setError('');
@@ -224,15 +224,6 @@ export function App() {
     finally { setBusy(false); }
   }
 
-  async function saveDelta(): Promise<void> {
-    if (!selectedCapability || !selectedChange || !delta) return;
-    try {
-      const next = await put<{ path: string; digest: string }>('/delta', { capability: selectedCapability, change: selectedChange, content: deltaText, baseDigest: delta.digest });
-      setDelta({ path: next.path, digest: next.digest, content: deltaText }); setDeltaDirty(false);
-      setMessage('Spec delta saved. Verify the change before reconciliation.'); setError('');
-    } catch (failure) { setError(String(failure)); }
-  }
-
   async function reconcile(item: PendingDraft, execute: boolean): Promise<void> {
     setBusy(true);
     try {
@@ -251,8 +242,8 @@ export function App() {
   }
 
   function selectCapability(id: string): void {
-    if ((dirtyFlow || deltaDirty) && !window.confirm('You have unsaved changes. Switch capability?')) return;
-    setSelectedCapability(id); setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false);
+    if (dirtyFlow && !window.confirm('You have unsaved changes. Switch capability?')) return;
+    setSelectedCapability(id); setFlow(null); setFlowSelection(''); setDirtyFlow(false);
     setSelectedCase(null); setError('');
   }
 
@@ -283,7 +274,7 @@ export function App() {
         <h3>Active change and flow</h3>
         <p><strong>Active change:</strong> the OpenSpec work you have selected. It groups the proposal, tasks, spec deltas, and any graph drafts.</p>
         <p><strong>Flow:</strong> each capability/spec has one behavior graph. A change holds its draft version. Saving a draft does not replace the current graph or update the spec Markdown; reconciliation promotes it.</p>
-        <p>Create or select a change, then edit the selected capability's flow. A Decision WHEN can lead to an Action, another Decision, or an Outcome; an Action can lead to an Outcome. The final Outcome supplies THEN. Link each complete path to the OpenSpec scenario it describes; the reconciliation skill writes the first condition as WHEN and later conditions as AND.</p>
+        <p>Create or select a change before editing the map, relationships, or flow. A Decision WHEN can lead to an Action, another Decision, or an Outcome; an Action can lead to an Outcome. The final Outcome supplies THEN. Scenario text and path associations are read only in the app: use <code>opsx-chart-graph-to-spec</code> to reconcile complete paths with OpenSpec scenarios.</p>
         <p>On the spec map, drag a capability card to change only its position. Positions save automatically; <strong>Reset positions</strong> restores automatic layout.</p>
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
@@ -307,19 +298,19 @@ export function App() {
       <div className="workspace">
         <aside className="sidebar">
           <div className="sidebar-header"><span className="eyebrow">PROJECT</span><strong title={project.root}>{project.root.split('/').pop()}</strong><small>{project.current.length} current specs · {project.proposed.length} delta</small></div>
-          {graphWorkspace?.initialized === false ? <div className="graph-setup"><strong>Graph workspace is not initialized</strong><small>Create <code>openspec/graph/</code> to store project relationships and flows.</small><button onClick={() => void initializeGraphWorkspace()} disabled={busy}>Initialize graph workspace</button></div> : null}
+          {graphWorkspace?.initialized === false ? <div className="graph-setup"><strong>Graph workspace is not initialized</strong><small>Create <code>openspec/graph/</code> to store project relationships and flows. Select a change first.</small><button onClick={() => void initializeGraphWorkspace()} disabled={busy || !selectedChange}>Initialize graph workspace</button></div> : null}
           <div className="sidebar-controls"><input placeholder="Search specs…" value={search} onChange={(event) => setSearch(event.target.value)} /><label className="checkline"><input type="checkbox" checked={focus} onChange={(event) => setFocus(event.target.checked)} /> Connected only</label></div>
           <div className="capability-list">{capabilityIds.filter((id) => id.toLowerCase().includes(search.toLowerCase())).map((id) => <button key={id} className={selectedCapability === id ? 'active' : ''} onClick={() => selectCapability(id)}><span className="cap-dot" />{id}{!project.current.some((item) => item.id === id) ? <em>new</em> : null}</button>)}</div>
-          <div className="sidebar-footer"><label>Active change<select value={selectedChange} onChange={(event) => { if (dirtyFlow || deltaDirty) { if (!window.confirm('You have unsaved changes. Switch change?')) return; } setSelectedChange(event.target.value); setFlow(null); setFlowSelection(''); setDirtyFlow(false); setDeltaDirty(false); }}><option value="">None</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Select a change or create one in the Flow view to edit behavior.</small></div>
+          <div className="sidebar-footer"><label>Active change<select value={selectedChange} onChange={(event) => { if (dirtyFlow && !window.confirm('You have unsaved changes. Switch change?')) return; setSelectedChange(event.target.value); setFlow(null); setFlowSelection(''); setDirtyFlow(false); }}><option value="">None</option>{project.changes.map((item) => <option key={item.name} value={item.name}>{item.name} · {item.completedTasks}/{item.totalTasks}</option>)}</select></label><small>Select a change or create one in the Flow view before making edits.</small></div>
         </aside>
         <main className="main-panel">
-          <div className="view-header"><div><span className="eyebrow">{page === 'map' ? 'ONE CAPABILITY PER SPEC' : 'BEHAVIOR'}</span><h1>{page === 'map' ? 'Specification map' : selectedCapability ?? 'Flows'}</h1>{page === 'map' ? <small className="map-help">Drag spec cards to reposition them. Changes save automatically.</small> : null}</div><div className="view-actions">{page === 'map' && mapLayout && Object.keys(mapLayout.positions).length ? <button className="quiet" onClick={() => void resetMapPositions()} disabled={mapSaving}>Reset positions</button> : null}<div className="tabs"><button className={page === 'map' ? 'active' : ''} onClick={() => setPage('map')}>Map</button><button className={page === 'flow' ? 'active' : ''} onClick={() => setPage('flow')}>Flow</button></div></div></div>
-          {page === 'map' ? mapLayout ? <MapView key={`${project.root}:${mapLayoutRevision}`} project={project} relations={relations.edges} suggestions={suggestions} selected={selectedCapability} onSelect={selectCapability} search={search} focus={focus} savedPositions={mapLayout.positions} saving={mapSaving} onMove={moveMapNode} /> : <div className="empty-canvas">Loading map…</div> :
+          <div className="view-header"><div><span className="eyebrow">{page === 'map' ? 'ONE CAPABILITY PER SPEC' : 'BEHAVIOR'}</span><h1>{page === 'map' ? 'Specification map' : selectedCapability ?? 'Flows'}</h1>{page === 'map' ? <small className="map-help">{selectedChange ? 'Drag spec cards to reposition them. Positions save automatically.' : 'Select or create a change to move spec cards.'}</small> : null}</div><div className="view-actions">{page === 'map' && mapLayout && Object.keys(mapLayout.positions).length ? <button className="quiet" onClick={() => void resetMapPositions()} disabled={mapSaving || !selectedChange}>Reset positions</button> : null}<div className="tabs"><button className={page === 'map' ? 'active' : ''} onClick={() => setPage('map')}>Map</button><button className={page === 'flow' ? 'active' : ''} onClick={() => setPage('flow')}>Flow</button></div></div></div>
+          {page === 'map' ? mapLayout ? <MapView key={`${project.root}:${mapLayoutRevision}`} project={project} relations={relations.edges} suggestions={suggestions} selected={selectedCapability} onSelect={selectCapability} search={search} focus={focus} savedPositions={mapLayout.positions} saving={mapSaving} editable={!!selectedChange} onMove={moveMapNode} /> : <div className="empty-canvas">Loading map…</div> :
             <div className="flow-page"><div className="flow-selection"><div className="flow-identity"><strong>{selectedCapability ?? 'Select a spec'}</strong><small>One flow for this spec · {selectedChange ? `Change: ${selectedChange}` : 'Select or create a change to edit'}</small></div>
               {flow && !needsConsolidation ? <><span className={`pill ${flowScope === 'change' ? 'amber' : ''}`}>{flowScope === 'change' ? 'DRAFT' : 'CURRENT'}</span><button onClick={() => void saveCurrentFlow()} disabled={!dirtyFlow || !selectedChange || busy}>Save flow</button></> : null}</div>
               <div className="change-create"><label>New change <input placeholder="e.g. improve-login" value={newChangeName} onChange={(event) => setNewChangeName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void createChange(); }} /></label><button onClick={() => void createChange()} disabled={!newChangeName.trim() || busy}>Create change</button></div>
-              {needsConsolidation ? <div className="flow-legacy"><h2>Combine existing flows for this spec</h2><p>This project has {legacyFlowIds.length} older flows for {selectedCapability}. Combine them into one graph before editing. Original YAML files are backed up.</p><button onClick={() => void consolidateCurrentFlows()} disabled={busy}>Combine flows</button></div> : flow ? <FlowEditor key={`${selectedCapability}:${selectedChange}`} flow={flow} project={project} change={selectedChange} editable={!!selectedChange} dirty={dirtyFlow} saving={busy} onSave={() => void saveCurrentFlow()} selectedCase={selectedCase} onSelectCase={selectGraphCase} onChange={(next) => { setFlow(next); setDirtyFlow(true); }} /> : <div className="empty-canvas"><h2>No flow yet</h2><p>Create or select a change to start this spec's single flow.</p></div>}
-              {selectedChange && delta ? <section className="flow-delta-editor"><h3>Proposed OpenSpec behavior</h3><p>Review the change's requirements and WHEN/THEN scenarios against the paths above.</p><small className="source-path">{delta.path}</small><textarea className="delta-editor" spellCheck={false} value={deltaText} onChange={(event) => { setDeltaText(event.target.value); setDeltaDirty(true); }} placeholder="# Spec Delta\n\n## ADDED Requirements\n..." /><div className="inline-fields"><button disabled={!deltaDirty} onClick={() => void saveDelta()}>Save delta</button><button className="quiet" onClick={() => void post('/openspec-validate', { change: selectedChange }).then(() => setMessage('OpenSpec change is valid.')).catch((failure) => setError(String(failure)))}>Validate OpenSpec</button></div></section> : null}
+              {needsConsolidation ? <div className="flow-legacy"><h2>Combine existing flows for this spec</h2><p>This project has {legacyFlowIds.length} older flows for {selectedCapability}. Combine them into one graph before editing. Original YAML files are backed up.</p><button onClick={() => void consolidateCurrentFlows()} disabled={busy || !selectedChange}>Combine flows</button>{!selectedChange ? <p>Select or create a change first.</p> : null}</div> : flow ? <FlowEditor key={`${selectedCapability}:${selectedChange}`} flow={flow} project={project} change={selectedChange} editable={!!selectedChange} dirty={dirtyFlow} saving={busy} onSave={() => void saveCurrentFlow()} selectedCase={selectedCase} onSelectCase={selectGraphCase} onChange={(next) => { setFlow(next); setDirtyFlow(true); }} /> : <div className="empty-canvas"><h2>No flow yet</h2><p>Create or select a change to start this spec's single flow.</p></div>}
+              {selectedChange && delta ? <section className="flow-delta-editor"><h3>Proposed OpenSpec behavior</h3><p>Read only in Chart. Use <code>opsx-chart-graph-to-spec</code> to reconcile scenarios in this change.</p><small className="source-path">{delta.path}</small><pre className="delta-preview">{delta.content || 'No spec delta yet. Run the Chart skill to create one.'}</pre><button className="quiet" onClick={() => void post('/openspec-validate', { change: selectedChange }).then(() => setMessage('OpenSpec change is valid.')).catch((failure) => setError(String(failure)))}>Validate OpenSpec</button></section> : null}
             </div>}
         </main>
         <aside className="inspector"><div className="inspector-heading"><span className="eyebrow">SPEC AND CONNECTIONS</span><h2>{selectedCapability ?? 'Select a spec'}</h2></div>
@@ -328,11 +319,11 @@ export function App() {
               {currentCapability ? renderSpecConnector(currentCapability) : null}
               {proposedCapability ? renderSpecConnector(proposedCapability) : null}
               {!currentCapability && !proposedCapability ? <p className="muted">No spec for the current selection.</p> : null}
-              <section><h3>Connections between specs</h3>{relations.edges.filter((item) => item.source === selectedCapability || item.target === selectedCapability).map((item) => <div className="relation-row" key={item.id}><span>{item.source} <em>{item.type}</em> {item.target}</span><button className="icon-button" title="Remove relationship" onClick={() => void saveRelationship({ ...relations, edges: relations.edges.filter((edge) => edge.id !== item.id) })}>×</button></div>)}
-                <div className="add-relation"><select value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as Relation['type'])}><option value="depends-on">depends on</option><option value="invokes">invokes</option><option value="emits-to">emits to</option><option value="shares-data-with">shares data with</option></select><select value={relationshipTarget} onChange={(event) => setRelationshipTarget(event.target.value)}><option value="">Target…</option>{capabilityIds.filter((id) => id !== selectedCapability).map((id) => <option key={id} value={id}>{id}</option>)}</select><button onClick={() => void addRelationship()} disabled={!relationshipTarget}>Add</button></div>
+              <section><h3>Connections between specs</h3>{relations.edges.filter((item) => item.source === selectedCapability || item.target === selectedCapability).map((item) => <div className="relation-row" key={item.id}><span>{item.source} <em>{item.type}</em> {item.target}</span>{selectedChange ? <button className="icon-button" title="Remove relationship" onClick={() => void saveRelationship({ ...relations, edges: relations.edges.filter((edge) => edge.id !== item.id) })}>×</button> : null}</div>)}
+                {selectedChange ? <div className="add-relation"><select value={relationshipType} onChange={(event) => setRelationshipType(event.target.value as Relation['type'])}><option value="depends-on">depends on</option><option value="invokes">invokes</option><option value="emits-to">emits to</option><option value="shares-data-with">shares data with</option></select><select value={relationshipTarget} onChange={(event) => setRelationshipTarget(event.target.value)}><option value="">Target…</option>{capabilityIds.filter((id) => id !== selectedCapability).map((id) => <option key={id} value={id}>{id}</option>)}</select><button onClick={() => void addRelationship()} disabled={!relationshipTarget}>Add</button></div> : <p className="muted">Select or create a change to edit spec relationships.</p>}
                 {suggestions.filter((item) => item.source === selectedCapability || item.target === selectedCapability).map((item, index) => <div className="suggestion" key={index}><span>Possible link to {item.source === selectedCapability ? item.target : item.source} · {item.change}</span><button className="quiet" onClick={() => setRelationshipTarget(item.source === selectedCapability ? item.target : item.source)}>Choose target</button></div>)}
               </section>
-              <section><h3>Diagnostics</h3>{[...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].length ? [...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.code}-${index}`}><strong>{item.code}</strong><span>{item.message}</span>{item.candidate ? <button className="quiet" onClick={() => { if (!flow) return; setFlow({ ...flow, cases: flow.cases.map((graphCase) => graphCase.id === item.target?.split(':').pop() ? { ...graphCase, scenario: item.candidate! } : graphCase) }); setDirtyFlow(true); }}>Use suggested reference</button> : null}</div>) : <p className="muted">No issues found.</p>}</section>
+              <section><h3>Diagnostics</h3>{[...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].length ? [...diagnostics, ...(flow && dirtyFlow ? validateFlow(flow) : [])].map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.code}-${index}`}><strong>{item.code}</strong><span>{item.message}</span>{item.candidate ? <small>Use <code>opsx-chart-graph-to-spec</code> to review the suggested scenario reference.</small> : null}</div>) : <p className="muted">No issues found.</p>}</section>
               {pending.length ? <section><h3>Graphs to reconcile</h3>{pending.map((item) => <div className="pending" key={`${item.archived}-${item.change}`}><strong>{item.change}{item.archived ? ' · archived' : ''}</strong><small>{item.files.length} draft graph files</small><div className="inline-fields"><button className="quiet" onClick={() => void reconcile(item, false)}>Preflight</button><button onClick={() => void reconcile(item, true)} disabled={busy}>Reconcile</button></div></div>)}</section> : null}
             </div>
           </> : null}

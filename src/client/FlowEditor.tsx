@@ -35,9 +35,6 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [newType, setNewType] = useState<FlowNode['type']>('action');
   const [newLabel, setNewLabel] = useState('');
-  const [caseName, setCaseName] = useState('');
-  const [caseRequirement, setCaseRequirement] = useState('');
-  const [casePath, setCasePath] = useState('');
   const [connectionTarget, setConnectionTarget] = useState('');
   const [graphCollapsed, setGraphCollapsed] = useState(false);
   const flowInstance = useRef<ReactFlowInstance | null>(null);
@@ -53,10 +50,6 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
         scope: item.scope, change: item.change, fingerprint: scenario.fingerprint } as ScenarioRef,
       rawText: scenario.rawText,
     })))), [project, flow.capability, change]);
-  const requirementNames = [...new Set([...project.current, ...project.proposed.filter((item) => item.change === change)]
-    .filter((item) => item.id === flow.capability).flatMap((item) => item.requirements.map((requirement) => requirement.name)))];
-  const selectedRequirement = requirementNames.includes(caseRequirement) ? caseRequirement : requirementNames[0] ?? '';
-
   useEffect(() => { setConnectionTarget(''); }, [selectedNode]);
 
   useEffect(() => {
@@ -75,8 +68,6 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
   const activeBehavior = activeCase ? pathBehavior(flow, activeCase.edgeIds) : null;
   const availablePaths = flowPaths(flow);
   const unlinkedPaths = availablePaths.filter((edges) => !flow.cases.some((item) => item.edgeIds.join('|') === edges.join('|')));
-  const chosenPath = unlinkedPaths.find((edges) => edges.join('|') === casePath) ?? unlinkedPaths[0];
-  const draftBehavior = pathBehavior(flow, chosenPath ?? []);
   const linkedScenario = (item: FlowCase) => scenarios.find((scenario) => scenario.ref.requirement === item.scenario.requirement &&
     scenario.ref.scenario === item.scenario.scenario && scenario.ref.scope === item.scenario.scope && scenario.ref.change === item.scenario.change);
   const scenarioStatements = (rawText: string) => [...rawText.matchAll(/^\s*-\s*\*\*(WHEN|AND|THEN)\*\*\s*(.+)$/gm)]
@@ -103,8 +94,6 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
     if (!routeEdges.length || routeEdges.some((edge) => !edge)) return 'Incomplete path';
     return nodeName(routeEdges[0]!.source) + routeEdges.map((edge) => `${edge!.label ? ` —${edge!.label}→ ` : ' → '}${nodeName(edge!.target)}`).join('');
   };
-  const canAddCase = !!change && !!selectedRequirement && !!caseName.trim() && !!chosenPath && draftBehavior.complete &&
-    !flow.cases.some((item) => item.edgeIds.join('|') === chosenPath.join('|'));
   const nodes: Node[] = flow.nodes.map((item) => ({ id: item.id, type: 'behavior', position: item.position,
     initialWidth: 150, initialHeight: 65,
     data: { label: item.label, kind: item.type }, selected: item.id === selectedNode }));
@@ -168,18 +157,6 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
     });
   }
 
-  function addCase(): void {
-    if (!canAddCase || !chosenPath) return;
-    const name = caseName.trim();
-    const existing = scenarios.find((item) => item.ref.requirement === selectedRequirement && item.ref.scenario === name && item.ref.scope === 'change')
-      ?? scenarios.find((item) => item.ref.requirement === selectedRequirement && item.ref.scenario === name && item.ref.scope === 'current');
-    const scenario: ScenarioRef = existing?.ref ?? { capability: flow.capability, requirement: selectedRequirement, scenario: name, scope: 'change', change };
-    const id = crypto.randomUUID();
-    onChange({ ...flow, cases: [...flow.cases, { id, name, edgeIds: chosenPath, scenario, pendingSpec: !existing }] });
-    onSelectCase(id);
-    setCaseName(''); setCasePath('');
-  }
-
   function updateWhen(nodeId: string, edgeId: string, value: string): void {
     onChange({ ...flow, nodes: flow.nodes.map((node) => node.id === nodeId ? { ...node, whens: { ...node.whens, [edgeId]: value } } : node) });
   }
@@ -228,16 +205,16 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
       <div className="flow-selection-summary"><strong>Selected element</strong><span>{selectedSummary}</span></div>
       <div className="flow-editor-actions">
         {editable && graphCollapsed ? <button onClick={onSave} disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save flow'}</button> : null}
-        {editable ? <button className="quiet" aria-expanded={graphCollapsed} aria-controls="flow-forms" onClick={() => setGraphCollapsed((value) => !value)}>{graphCollapsed ? 'Show graph' : 'Collapse graph to edit'}</button> : null}
+        <button className="quiet" aria-expanded={graphCollapsed} aria-controls="flow-forms" onClick={() => setGraphCollapsed((value) => !value)}>{graphCollapsed ? 'Show graph' : editable ? 'Collapse graph to edit' : 'Show scenario details'}</button>
       </div>
     </div>
-    {editable && graphCollapsed ? <div id="flow-forms" className="flow-bottom flow-forms">
+    {graphCollapsed ? <div id="flow-forms" className="flow-bottom flow-forms">
       <div className="flow-form-intro">
-        <h2>Edit the flow</h2>
-        <p>Select a block. A Decision WHEN can lead to an Action, another Decision, or an Outcome. Actions can lead to Outcomes. The final Outcome holds the THEN.</p>
-        <p className="flow-form-context">{change ? <>Active change: <strong>{change}</strong>. Edits will be saved as a draft in this change.</> : 'Select an active change in the Project sidebar to save behavior edits.'}</p>
+        <h2>{editable ? 'Edit the flow' : 'Scenario details'}</h2>
+        <p>{editable ? 'Select a block. A Decision WHEN can lead to an Action, another Decision, or an Outcome. Actions can lead to Outcomes. The final Outcome holds the THEN.' : 'The OpenSpec scenarios and their path associations are read only here.'}</p>
+        <p className="flow-form-context">{editable ? <>Active change: <strong>{change}</strong>. Flow edits will be saved as a draft in this change.</> : 'Create or select a change to edit graph nodes. Use the Chart skills to reconcile scenarios.'}</p>
       </div>
-      <section>
+      {editable ? <section>
         <div className="flow-section-heading"><span className="flow-step-number">1</span><div><h3>Edit the selected block</h3><p>Click a block or its connection in the graph.</p></div></div>
         {selectedNodeValue ? <>
           <div className="flow-form-card">
@@ -279,42 +256,29 @@ export function FlowEditor({ flow, project, change, editable, dirty, saving, onS
           </div> : null}
           <div className="flow-remove-row"><button className="quiet danger" onClick={() => { if (selectedNode) changeNodes([{ type: 'remove', id: selectedNode }]); setSelectedNode(null); }}>Remove node</button><small>This also removes its connections from paths.</small></div>
         </> : <div className="flow-form-empty"><p>No block selected. Show the graph and click a block to edit it.</p><button className="quiet" onClick={() => setGraphCollapsed(false)}>Show graph</button></div>}
-      </section>
+      </section> : null}
       <section>
-        <div className="flow-section-heading"><span className="flow-step-number">2</span><div><h3>Connect paths to spec scenarios</h3><p>A complete Event-to-Outcome route describes one OpenSpec scenario. The link tells the reconciliation skill which scenario receives its WHEN conditions and final THEN.</p></div></div>
+        <div className="flow-section-heading"><span className="flow-step-number">{editable ? '2' : '1'}</span><div><h3>OpenSpec scenarios and paths</h3><p>These links are read only. Use <code>opsx-chart-graph-to-spec</code> to associate complete paths with scenarios and reconcile their WHEN/THEN text.</p></div></div>
         <div className="flow-form-card">
-          <h4>Flow cases</h4>
-          <p>Each case uses the WHEN statements on the decision branches it crosses and the THEN on its outcome node. A skill reconciles them with the OpenSpec spec.</p>
+          <h4>Linked paths</h4>
+          <p>Each path uses the WHEN statements on its Decision branches and the THEN on its final Outcome. The skill maintains its scenario association.</p>
           {flow.cases.length ? <div className="case-list">{flow.cases.map((item) => <button key={item.id} className={`case-item ${selectedCase === item.id ? 'active' : ''}`} onClick={() => onSelectCase(item.id)}>
             <strong>{item.name}</strong><small>{item.scenario.requirement} / {item.scenario.scenario}{item.pendingSpec ? ' · pending reconciliation' : ''}</small><span className="case-route">{caseRoute(item)}</span>
-          </button>)}</div> : <p className="flow-field-help">No cases defined.</p>}
+          </button>)}</div> : <p className="flow-field-help">No paths have been linked to scenarios yet. Run <code>opsx-chart-graph-to-spec</code> after defining the graph behavior.</p>}
           {activeCase ? <div className="flow-active-case"><p><strong>OpenSpec destination:</strong> {activeCase.scenario.requirement} / {activeCase.scenario.scenario}</p>
             <ol className="flow-path-list">{activeCase.edgeIds.map((id, index) => { const edge = flow.edges.find((item) => item.id === id); return <li key={`${id}-${index}`}>{edge ? edgeName(edge) : 'Connection no longer exists'}</li>; })}</ol>
             {activeBehavior ? <div className="flow-scenario-preview"><strong>Node WHEN / THEN</strong><ul className="flow-behavior-steps">{activeBehavior.whens.map((when, index) => <li key={index}><b>{index ? 'AND' : 'WHEN'}</b><span>{when}</span></li>)}{activeBehavior.then ? <li><b>THEN</b><span>{activeBehavior.then}</span></li> : null}</ul></div> : null}
             {activeScenario ? <div className="flow-scenario-preview"><strong>OpenSpec scenario text</strong><pre>{activeScenario.rawText.replaceAll('**', '')}</pre></div> : null}
-            <button className="quiet danger" onClick={() => { onChange({ ...flow, cases: flow.cases.filter((item) => item.id !== activeCase.id) }); onSelectCase(null); }}>Remove this path</button>
           </div> : null}
         </div>
-        {unlinkedPaths.length || !availablePaths.length ? <div className="flow-form-card">
-          <h4>Link a path</h4>
-          <p>Choose a complete route and name its destination scenario. The graph remains the editing surface; the skill writes its conditions and result into the change's spec delta.</p>
-          {unlinkedPaths.length ? <div className="flow-route-options">{unlinkedPaths.map((edges) => {
-            const key = edges.join('|');
-            const route = { edgeIds: edges } as FlowCase;
-            return <label className={`flow-route-option ${chosenPath?.join('|') === key ? 'active' : ''}`} key={key}><input type="radio" name="case-route" checked={chosenPath?.join('|') === key} onChange={() => setCasePath(key)} /><span>{caseRoute(route)}</span></label>;
-          })}</div> : <p className="flow-field-help">Connect an Event through a Decision to an Outcome to create a complete route.</p>}
-          <div className="flow-field-grid">
-            <label>Case name <input placeholder="E.g. Valid credentials" value={caseName} onChange={(event) => setCaseName(event.target.value)} /></label>
-            <label>Spec requirement <select value={selectedRequirement} onChange={(event) => setCaseRequirement(event.target.value)} disabled={!requirementNames.length}>
-              {requirementNames.length ? requirementNames.map((name) => <option key={name} value={name}>{name}</option>) : <option value="">No requirements available</option>}
-            </select></label>
-          </div>
-          {chosenPath ? <>
-            {draftBehavior.whens.length || draftBehavior.then ? <div className="flow-scenario-preview"><strong>Statements ready for the spec</strong><ul className="flow-behavior-steps">{draftBehavior.whens.map((when, index) => <li key={index}><b>{index ? 'AND' : 'WHEN'}</b><span>{when}</span></li>)}{draftBehavior.then ? <li><b>THEN</b><span>{draftBehavior.then}</span></li> : null}</ul></div> : null}
-            <p className={`flow-path-feedback ${!draftBehavior.complete ? 'warning' : canAddCase ? 'ready' : ''}`}>{!draftBehavior.complete ? 'Complete every Decision WHEN and the final Outcome THEN on their blocks.' : !change ? 'Select an active change to save the case.' : 'The path is ready to link to a scenario.'}</p>
-          </> : null}
-          <button className="flow-associate-button" onClick={addCase} disabled={!canAddCase}>Create case in flow</button>
-        </div> : <p className="flow-field-help">Every complete graph path is linked to a spec scenario.</p>}
+        {unlinkedPaths.length ? <div className="flow-form-card"><h4>Paths awaiting reconciliation</h4><p>Run <code>opsx-chart-graph-to-spec</code> to choose or create their OpenSpec scenarios.</p>
+          <div className="flow-route-options">{unlinkedPaths.map((edgeIds) => { const behavior = pathBehavior(flow, edgeIds); return <div className="flow-route-option" key={edgeIds.join('|')}>
+            <span>{caseRoute({ edgeIds } as FlowCase)}<small>{behavior.complete ? 'Ready for the skill' : 'Complete Decision WHEN and Outcome THEN before reconciliation'}</small></span>
+          </div>; })}</div>
+        </div> : <p className="flow-field-help">{availablePaths.length ? 'Every complete graph path is linked to a spec scenario.' : 'Connect an Event to an Outcome to create a complete route.'}</p>}
+        <div className="flow-form-card"><h4>OpenSpec scenarios</h4><p>Read only. The corresponding spec Markdown is updated through the Chart skills.</p>
+          {scenarios.length ? <div className="flow-scenario-list">{scenarios.map((item) => <div className="flow-scenario-preview" key={`${item.ref.scope}:${item.ref.change ?? ''}:${item.ref.requirement}:${item.ref.scenario}`}><strong>{item.label}</strong><pre>{item.rawText.replaceAll('**', '')}</pre></div>)}</div> : <p className="flow-field-help">No scenarios in the current spec or selected change.</p>}
+        </div>
       </section>
     </div> : null}
   </div>;

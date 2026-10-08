@@ -15,6 +15,7 @@ type Props = {
   focus: boolean;
   savedPositions: MapLayout['positions'];
   saving: boolean;
+  editable: boolean;
   onMove: (id: string, position: MapPosition) => Promise<void>;
 };
 
@@ -31,7 +32,7 @@ function CapabilityNode({ data, selected }: NodeProps<Node<{ label: string; deta
 const nodeTypes = { capability: CapabilityNode };
 const elk = new ELK();
 
-export function MapView({ project, relations, suggestions, selected, onSelect, search, focus, savedPositions, saving, onMove }: Props) {
+export function MapView({ project, relations, suggestions, selected, onSelect, search, focus, savedPositions, saving, editable, onMove }: Props) {
   const [autoPositions, setAutoPositions] = useState<Record<string, MapPosition>>({});
   const [dragPositions, setDragPositions] = useState<Record<string, MapPosition>>({});
   const capabilities = useMemo(() => {
@@ -88,15 +89,15 @@ export function MapView({ project, relations, suggestions, selected, onSelect, s
     })),
   ];
   return <div className="canvas map-canvas">
-    <ReactFlow key={layoutKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={!saving} nodesConnectable={false}
-      onNodesChange={(changes: NodeChange[]) => {
+    <ReactFlow key={layoutKey} nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={editable && !saving} nodesConnectable={false}
+      onNodesChange={editable ? (changes: NodeChange[]) => {
         const moved: Record<string, MapPosition> = {};
         for (const change of changes) if (change.type === 'position' && change.position) moved[change.id] = change.position;
         if (Object.keys(moved).length) setDragPositions((current) => ({ ...current, ...moved }));
-      }}
-      onNodeDragStop={(_event, node) => { void onMove(node.id, node.position).finally(() => setDragPositions((current) => {
+      } : undefined}
+      onNodeDragStop={editable ? (_event, node) => { void onMove(node.id, node.position).finally(() => setDragPositions((current) => {
         const next = { ...current }; delete next[node.id]; return next;
-      })); }}
+      })); } : undefined}
       onNodeClick={(_event, node) => onSelect(node.id)} fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.15 }} proOptions={{ hideAttribution: true }}>
       <Background color="#d5dee0" gap={22} size={1} />
       <Controls showInteractive={false} />

@@ -57,6 +57,12 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
     snapshot = next;
     return next;
   }
+  async function activeChange(value: unknown): Promise<{ name: string; project: ProjectSnapshot }> {
+    const name = input(value, 'active change');
+    const project = await fresh();
+    if (!project.changes.some((item) => item.name === name)) throw new Error(`Active OpenSpec change does not exist: ${name}`);
+    return { name, project };
+  }
 
   app.get('/api/health', route(async (_req, res) => res.json({ ok: true, root })));
   app.get('/api/project', route(async (_req, res) => res.json(snapshot ?? { root: null })));
@@ -78,24 +84,36 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
     req.on('close', () => listeners.delete(res));
   });
   app.get('/api/graph-workspace', route(async (_req, res) => res.json(await graphWorkspaceStatus(currentRoot()))));
-  app.post('/api/graph-workspace', route(async (_req, res) => res.json(await initGraphWorkspace(currentRoot()))));
+  app.post('/api/graph-workspace', route(async (req, res) => {
+    await activeChange(req.body?.change);
+    res.json(await initGraphWorkspace(currentRoot()));
+  }));
   app.get('/api/relations', route(async (_req, res) => res.json(await loadRelations(currentRoot()))));
   app.get('/api/map-layout', route(async (_req, res) => res.json(await loadMapLayout(currentRoot()))));
   app.put('/api/map-layout', route(async (req, res) => {
-    res.json(await saveMapPosition(currentRoot(), input(req.body?.capability, 'capability'), req.body?.position, await fresh()));
+    const { project } = await activeChange(req.body?.change);
+    res.json(await saveMapPosition(currentRoot(), input(req.body?.capability, 'capability'), req.body?.position, project));
   }));
-  app.delete('/api/map-layout', route(async (_req, res) => res.json(await resetMapLayout(currentRoot()))));
+  app.delete('/api/map-layout', route(async (req, res) => {
+    await activeChange(req.body?.change);
+    res.json(await resetMapLayout(currentRoot()));
+  }));
   app.put('/api/relations', route(async (req, res) => {
-    const result = await saveRelations(currentRoot(), req.body, await fresh());
+    const { project } = await activeChange(req.body?.change);
+    const result = await saveRelations(currentRoot(), req.body?.relations, project);
     res.status(result.diagnostics.some((item) => item.severity === 'error') ? 422 : 200).json({ ...result, error: result.diagnostics.filter((item) => item.severity === 'error').map((item) => item.message).join('; ') || undefined });
   }));
   app.get('/api/flows', route(async (req, res) => res.json(await listFlows(currentRoot(), typeof req.query.change === 'string' ? req.query.change : undefined))));
-  app.post('/api/flow/consolidate', route(async (req, res) => res.json(await consolidateFlows(currentRoot(), input(req.body?.capability, 'capability')))));
+  app.post('/api/flow/consolidate', route(async (req, res) => {
+    await activeChange(req.body?.change);
+    res.json(await consolidateFlows(currentRoot(), input(req.body?.capability, 'capability')));
+  }));
   app.get('/api/flow', route(async (req, res) => {
     res.json(await loadFlow(currentRoot(), input(req.query.capability, 'capability'), input(req.query.id, 'flow ID'), typeof req.query.change === 'string' ? req.query.change : undefined));
   }));
   app.put('/api/flow', route(async (req, res) => {
-    res.json(await saveFlow(currentRoot(), req.body?.flow, typeof req.body?.change === 'string' ? req.body.change : undefined, await fresh()));
+    const { name, project } = await activeChange(req.body?.change);
+    res.json(await saveFlow(currentRoot(), req.body?.flow, name, project));
   }));
   app.delete('/api/flow', route(async (req, res) => {
     res.json(await deleteFlow(currentRoot(), input(req.body?.capability, 'capability'), input(req.body?.id, 'flow ID'), input(req.body?.change, 'change')));
@@ -110,21 +128,6 @@ export async function createApi(initialDirectory: string): Promise<express.Expre
   app.get('/api/source', route(async (req, res) => {
     const file = projectPath(currentRoot(), input(req.query.capability, 'capability'), typeof req.query.change === 'string' ? req.query.change : undefined);
     res.type('text/markdown').send(await fs.readFile(file, 'utf8'));
-  }));
-  app.put('/api/delta', route(async (req, res) => {
-    const change = input(req.body?.change, 'change');
-    const capability = input(req.body?.capability, 'capability');
-    const project = await fresh();
-    if (!project.changes.some((item) => item.name === change)) throw new Error(`Active change does not exist: ${change}`);
-    const file = projectPath(currentRoot(), capability, change);
-    let previous: string | null;
-    try { previous = await fs.readFile(file, 'utf8'); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') previous = null; else throw error; }
-    if (req.body?.baseDigest !== digest(previous)) throw new Error('Delta spec changed externally; refresh before saving');
-    const content = input(req.body?.content, 'content');
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, content, 'utf8');
-    res.json({ path: file, digest: digest(content) });
   }));
   app.get('/api/diagnostics', route(async (req, res) => res.json(await validateGraph(currentRoot(), typeof req.query.change === 'string' ? req.query.change : undefined, await fresh()))));
   app.get('/api/pending', route(async (_req, res) => res.json(await pendingDrafts(currentRoot()))));
