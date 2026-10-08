@@ -97,3 +97,5 @@ Skill files live in `.agents/skills/`. Ask a skill-compatible assistant to use o
 ## Contribute
 
 For development setup, file formats, CLI commands, and reconciliation details, read the [contributor README](docs/README-CONTRIBUTORS.md).
+
+Propose changes through a pull request targeting `main`. The repository owner reviews changes before they are merged.
