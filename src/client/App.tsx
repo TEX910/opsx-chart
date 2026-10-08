@@ -185,7 +185,7 @@ export function App() {
       const next = await post<ProjectSnapshot>('/change', { name });
       setProject(next); setSelectedChange(name); setNewChangeName(''); setPage('flow');
       dirtyRef.current = false; setDirtyFlow(false); setExternalChanged(false); setFlow(null); setFlowLoading(true);
-      setMessage(`Change ${name} created. Edit this spec's flow, then complete the OpenSpec proposal, spec delta, and tasks.`); setError('');
+      setMessage(`Change ${name} created. Edit and save this spec's flow, then run opsx-chart-graph-to-spec with this change ID to complete the spec and planning files.`); setError('');
     } catch (failure) { setError(String(failure)); }
     finally { setBusy(false); }
   }
@@ -273,7 +273,7 @@ export function App() {
         <h3>Active change and flow</h3>
         <p><strong>Active change:</strong> the OpenSpec work you have selected. It groups the proposal, tasks, spec deltas, and any graph drafts.</p>
         <p><strong>Flow:</strong> each capability/spec has one behavior graph. A change holds its draft version. Saving a draft does not replace the current graph or update the spec Markdown; reconciliation promotes it.</p>
-        <p>Create or select a change before editing the map, relationships, or flow. A Decision WHEN can lead to an Action, another Decision, or an Outcome; an Action can lead to an Outcome. The final Outcome supplies THEN. Scenario text and path associations are read only in the app: use <code>opsx-chart-graph-to-spec</code> to reconcile complete paths with OpenSpec scenarios.</p>
+        <p>Create or select a change before editing the map, relationships, or flow. A Decision WHEN can lead to an Action, another Decision, or an Outcome; an Action can lead to an Outcome. The final Outcome supplies THEN. Scenario text and path associations are read only in the app: use <code>opsx-chart-graph-to-spec</code> with the change ID to reconcile complete paths and finish missing OpenSpec planning files before apply.</p>
         <p>On the spec map, drag a capability card to change only its position. Positions save automatically; <strong>Reset positions</strong> restores automatic layout.</p>
         <h3>Set up another project</h3>
         <ol><li>Make sure the target project already uses OpenSpec and its OpenSpec phase skills are available.</li><li>In the OPSX Chart source checkout, run <code>npm run build</code> and <code>npm link</code>.</li><li>Initialize the target project:</li></ol>
@@ -284,7 +284,7 @@ export function App() {
         <dl className="help-skills">
           <div><dt><code>init</code></dt><dd>Create the graph workspace and optionally install Chart skills.</dd></div>
           <div><dt><code>explore</code> · <code>propose</code> · <code>update</code> · <code>apply</code></dt><dd>Work through the matching OpenSpec phases with specs and graphs together.</dd></div>
-          <div><dt><code>graph-to-spec</code> · <code>spec-to-graph</code></dt><dd>Carry WHEN/THEN between graph nodes and Markdown scenarios.</dd></div>
+          <div><dt><code>graph-to-spec</code> · <code>spec-to-graph</code></dt><dd>Carry WHEN/THEN between graph nodes and Markdown scenarios. Graph-to-spec also finishes missing proposal, design, and tasks in the same change.</dd></div>
           <div><dt><code>sync</code> · <code>archive</code> · <code>reconcile</code></dt><dd>Promote, finish, or recover graph drafts alongside OpenSpec changes.</dd></div>
         </dl>
         <p>Ask your assistant to use a skill by name, such as <code>opsx-chart-propose</code>. Invocation syntax depends on the assistant.</p>

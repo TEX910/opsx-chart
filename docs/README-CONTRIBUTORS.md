@@ -31,11 +31,11 @@ The map stores manually dragged capability positions in `openspec/graph/map-layo
 | `openspec/changes/<change>/graph/relations.yaml` | Optional proposed relationship snapshot |
 | `openspec/changes/<change>/graph/reconciliation.json` | Record written after graph promotion |
 
-Graph files do not generate spec Markdown automatically. The `opsx-chart-graph-to-spec` skill enumerates complete paths, maintains their case-to-scenario associations, reads node descriptors, and writes the corresponding WHEN/AND/THEN scenarios in the active change's spec delta. A new case may set `pendingSpec: true` until that scenario exists. The UI displays cases, unlinked routes, scenario text, and delta Markdown read only. For older flows without node descriptors, the UI shows text from linked scenarios next to empty WHEN/THEN fields and lets the user copy it into the node. The scenario becomes normative after review and OpenSpec sync. The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed until confirmed.
+Graph files do not generate spec Markdown automatically. The `opsx-chart-graph-to-spec` skill enumerates complete paths, maintains their case-to-scenario associations, reads node descriptors, and writes the corresponding WHEN/AND/THEN scenarios in the active change's spec delta. When the change was created in the UI, the skill also fills missing OpenSpec planning artifacts required for apply (normally proposal, design, and tasks) in that same change, following the project's schema. A new case may set `pendingSpec: true` until that scenario exists. The UI displays cases, unlinked routes, scenario text, and delta Markdown read only. For older flows without node descriptors, the UI shows text from linked scenarios next to empty WHEN/THEN fields and lets the user copy it into the node. The scenario becomes normative after review and OpenSpec sync. The UI validates relationship endpoints and dependency cycles, flow topology, and scenario links. Suggested relationships are dashed until confirmed.
 
 The flow editor treats a Decision's outgoing edges as its WHEN list. Each branch points to an Action, another Decision, or an Outcome. Actions may point to Outcomes and do not add condition text. Branch labels are optional because the WHEN descriptor names the condition. `flowPaths` discovers acyclic Event-to-Outcome routes for scenario linking, and `pathBehavior` collects each traversed Decision WHEN in route order plus the final Outcome THEN. Skills emit the first condition as WHEN and later conditions as AND.
 
-The app exposes one flow per capability. A new capability starts with the flow ID `main`; an existing single flow keeps its ID across change drafts. `saveFlow` refuses a second flow ID. Legacy projects with several canonical flows can use **Combine flows**, which merges nodes, edges, cases, and positions into `main.yaml` and backs up each original under `openspec/graph/legacy-flows/`. It refuses to run while affected graph drafts are pending. The UI creates a new OpenSpec change with `openspec new change --json` before graph editing; the change's planning artifacts still follow the normal OpenSpec workflow.
+The app exposes one flow per capability. A new capability starts with the flow ID `main`; an existing single flow keeps its ID across change drafts. `saveFlow` refuses a second flow ID. Legacy projects with several canonical flows can use **Combine flows**, which merges nodes, edges, cases, and positions into `main.yaml` and backs up each original under `openspec/graph/legacy-flows/`. It refuses to run while affected graph drafts are pending. The UI creates a new OpenSpec change with `openspec new change --json` before graph editing; `opsx-chart-propose` can finish that shell before drawing, or `opsx-chart-graph-to-spec` can finish missing planning artifacts after drawing.
 
 ## Editing and reconciliation
 
@@ -45,10 +45,10 @@ The API watches `openspec/` and sends file events to the client. With no unsaved
 
 To complete a paired change:
 
-1. Reconcile each new or changed graph case into the change's spec delta with `opsx-chart-graph-to-spec`, then review both representations and run validation.
-2. Sync the OpenSpec delta into canonical specs with `opsx-chart-sync`.
-3. Run graph preflight, resolve conflicts or text drift, and reconcile the graph draft.
-4. Archive the OpenSpec change. If archive happened first, the pending drafts view finds its graph under `changes/archive/` for recovery.
+1. Reconcile each new or changed graph case into the change's spec delta with `opsx-chart-graph-to-spec`. It completes missing planning artifacts in the same change. Review the graph, delta, design, and tasks, then run validation.
+2. Implement the task list with `opsx-chart-apply`.
+3. Sync the OpenSpec delta into canonical specs and reconcile graph drafts with `opsx-chart-sync`.
+4. Archive the OpenSpec change with `opsx-chart-archive`. If archive happened first, the pending drafts view finds its graph under `changes/archive/` for recovery.
 
 The repository's `opsx-chart-explore`, `opsx-chart-propose`, `opsx-chart-update`, `opsx-chart-apply`, `opsx-chart-sync`, and `opsx-chart-archive` skills map to these OpenSpec phases and use the same change ID and task list. `opsx-chart-spec-to-graph` and `opsx-chart-graph-to-spec` help with individual linked scenarios; `opsx-chart-reconcile` handles graph conflicts and stranded drafts.
 
