@@ -256,7 +256,9 @@ export async function pendingDrafts(root: string): Promise<PendingDraft[]> {
       if (!entry.isDirectory() || (!archived && entry.name === 'archive')) continue;
       const change = entry.name;
       const graphDir = path.join(directory, change, 'graph');
-      const files = (await walkYaml(graphDir)).filter((item) => item === 'relations.yaml' || item.startsWith(`flows${path.sep}`));
+      const files = (await walkYaml(graphDir))
+        .filter((item) => item === 'relations.yaml' || item.startsWith(`flows${path.sep}`))
+        .map((item) => item.split(path.sep).join('/'));
       if (!files.length) continue;
       const record = await readText(path.join(graphDir, 'reconciliation.json'));
       if (record === null) result.push({ change, archived, files });
