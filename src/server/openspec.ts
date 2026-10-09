@@ -1,11 +1,9 @@
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { promisify } from 'node:util';
 import path from 'node:path';
+import { execa } from 'execa';
 import type { ScenarioRef, ScenarioLookup } from '../shared/model.js';
 
-const execFileAsync = promisify(execFile);
 const MIN_VERSION = [1, 14, 0];
 
 export type ScenarioInfo = { name: string; rawText: string; fingerprint: string };
@@ -54,10 +52,10 @@ export function fingerprint(text: string): string {
 export async function openSpecVersion(): Promise<string> {
   let version: string;
   try {
-    const result = await execFileAsync('openspec', ['--version'], { timeout: 10_000 });
+    const result = await execa('openspec', ['--version'], { timeout: 10_000 });
     version = result.stdout.trim();
   } catch (error) {
-    throw new Error(`OpenSpec CLI unavailable. Install @fission-ai/openspec 1.14.0 or newer. ${String(error)}`);
+    throw new Error(`OpenSpec CLI unavailable. Install @fission-ai/openspec 1.14.0 or newer and make sure its npm bin directory is on the PATH used to start Chart. ${String(error)}`);
   }
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
   const numbers = match?.slice(1).map(Number);
@@ -68,8 +66,10 @@ export async function openSpecVersion(): Promise<string> {
 }
 
 export async function runOpenSpec(root: string, args: string[]): Promise<unknown> {
+  // npm's Windows .cmd launcher passes arguments through cmd.exe, which cannot escape line breaks.
+  if (args.some((arg) => /[\r\n]/.test(arg))) throw new Error('OpenSpec arguments cannot contain line breaks');
   try {
-    const { stdout } = await execFileAsync('openspec', args, { cwd: root, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout } = await execa('openspec', args, { cwd: root, timeout: 30_000, maxBuffer: 16 * 1024 * 1024 });
     return JSON.parse(stdout) as unknown;
   } catch (error) {
     const failure = error as Error & { stdout?: string; stderr?: string };

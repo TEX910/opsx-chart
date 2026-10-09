@@ -46,6 +46,8 @@ You need Node.js 22 or later and the [OpenSpec CLI](https://github.com/Fission-A
 npm install -g @fission-ai/openspec@latest
 ```
 
+On Windows, confirm `openspec --version` works in the same terminal used to start Chart. If Chart still reports the CLI as unavailable, check `where.exe openspec` and restart that terminal after changing `PATH`. The npm installation normally supplies an `openspec.cmd` launcher, which Chart supports.
+
 Clone the repository and start the app:
 
 ```sh

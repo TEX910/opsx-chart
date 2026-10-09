@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { emptyFlow, flowPaths, flowWouldCycle, pathBehavior, validateFlow, type Relations } from '../src/shared/model.js';
-import { createOpenSpecChange, projectSnapshot, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
+import { createOpenSpecChange, projectSnapshot, runOpenSpec, scenarioLookup, validateOpenSpecChange } from '../src/server/openspec.js';
 import { consolidateFlows, graphPath, graphWorkspaceStatus, initGraphWorkspace, listFlows, loadFlow, loadMapLayout, loadRelations, pendingDrafts, preflightReconciliation, reconcileGraph, resetMapLayout, saveFlow, saveMapPosition, saveRelations } from '../src/server/graph-store.js';
 
 const fixture = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
@@ -18,6 +18,10 @@ beforeEach(async () => {
 afterEach(async () => { await fs.rm(root, { recursive: true, force: true }); });
 
 describe('OpenSpec project and graph coordination', () => {
+  it('rejects line breaks in CLI arguments before launching a Windows command shim', async () => {
+    await expect(runOpenSpec(root, ['show', 'change\n& echo unsafe', '--json'])).rejects.toThrow('OpenSpec arguments cannot contain line breaks');
+  });
+
   it('reads current and proposed specs without writing graph files', async () => {
     const snapshot = await projectSnapshot(root);
     expect(snapshot.current.map((item) => item.id)).toEqual(['authentication', 'notifications']);
