@@ -19,3 +19,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm link
+      - run: opsx-chart init --root test/fixtures/project --skills
