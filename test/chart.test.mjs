@@ -263,6 +263,23 @@ test('cloned generated files check successfully at a new absolute project path',
   assert.equal((await check({ root: clone })).valid, true);
 });
 
+test('Git line-ending conversion does not invalidate sources or generated diagrams', async t => {
+  const root = await fixture(t); const packet = await snapshot({ root }); const model = modelFor(packet);
+  await render(packet, model);
+  async function convert(folder) {
+    for (const entry of await readdir(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) await convert(file);
+      else if (entry.name.endsWith('.md')) await writeFile(file, (await readFile(file, 'utf8')).replace(/\r?\n/g, '\r\n'));
+    }
+  }
+  await convert(path.join(root, 'openspec'));
+  assert.equal((await check({ root })).valid, true);
+  await render(packet, model);
+  assert.equal((await check({ root })).valid, true);
+  assert.equal(await readFile(path.join(root, 'openspec/specs/identity/authentication/spec.md'), 'utf8'), auth.replace(/\n/g, '\r\n'));
+});
+
 test('archive freezes pre-sync preview, fixes links and checks historical delta separately', async t => {
   const root = await fixture(t, { change: true });
   const packet = await preview(root); await render(packet, modelFor(packet));
@@ -315,6 +332,17 @@ test('installer refuses a legacy wrapper and unknown/multiple targets before par
   await put(root, '.claude/skills/openspec-propose/SKILL.md', '---\nname: openspec-propose\n---\n');
   await assert.rejects(install({ root }), /Multiple OpenSpec/);
   await assert.rejects(install({ root, target: 'unknown' }), /Unknown target/);
+});
+
+test('installer preserves harmless line-ending changes in managed text skills', async t => {
+  const root = await fixture(t);
+  await put(root, '.agents/skills/openspec-propose/SKILL.md', '---\nname: openspec-propose\n---\nOriginal.\n');
+  await install({ root });
+  const file = path.join(root, '.agents/skills/opsx-chart-propose/SKILL.md');
+  const converted = (await readFile(file, 'utf8')).replace(/\r?\n/g, '\r\n');
+  await writeFile(file, converted);
+  assert.deepEqual((await install({ root, update: true })).installed, []);
+  assert.equal(await readFile(file, 'utf8'), converted);
 });
 
 test('expanded installation follows the originals that are actually installed', async t => {

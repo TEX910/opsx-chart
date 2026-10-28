@@ -6,7 +6,7 @@
       "agents/openai.yaml": "8e17132860b37c7847977f6b9ad7d98ee2a74c7e347a25a5d6c33303bf67291e",
       "references/diagrams.md": "8b903197f899dcfa9c6c3a463c30f00d2034131fd76255dad9470faf03c4acfb",
       "references/integration.md": "f5e22d1f6a305a88b5c48b24ffb44b12dc478b34d5ae9f8405c3f0bbde60a195",
-      "scripts/chart.mjs": "944cae1725b78e0a2cb323b9cf9f7c9f454a1180cd2390c4c1ad816aad321d69",
+      "scripts/chart.mjs": "e228504f208df5b1b9437959cb4c70ddfa7abe725b449482f439203b0af8f39e",
       "SKILL.md": "d03d02531823286ee91d29c4c8f6cc3b08bd5594730d1ff636ff3d9de2923849"
     },
     "opsx-chart-explore": {

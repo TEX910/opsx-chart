@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 export const marker = '<!-- opsx-chart:generated v1 -->';
 const renderVersion = 2;
 const manifestName = 'sources.json';
-const hash = value => createHash('sha256').update(value).digest('hex');
+const hash = value => createHash('sha256').update(value.replace(/\r\n/g, '\n')).digest('hex');
 const slash = value => value.split(path.sep).join('/');
 const fail = message => { throw new Error(message); };
 const inside = (parent, child) => { const relative = path.relative(parent, child); return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)); };

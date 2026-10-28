@@ -22,7 +22,11 @@ async function fileHashes(directory) {
       const file = path.join(folder, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`Skill bundle contains a symlink: ${file}`);
       if (entry.isDirectory()) await visit(file);
-      else result[path.relative(directory, file).split(path.sep).join('/')] = createHash('sha256').update(await readFile(file)).digest('hex');
+      else {
+        const content = await readFile(file);
+        const normalized = ['.md', '.mjs', '.yaml', '.yml', '.json', '.txt', '.svg'].includes(path.extname(file)) ? content.toString('utf8').replace(/\r\n/g, '\n') : content;
+        result[path.relative(directory, file).split(path.sep).join('/')] = createHash('sha256').update(normalized).digest('hex');
+      }
     }
   }
   await visit(directory);
