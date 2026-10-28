@@ -1,13 +1,13 @@
 # Notifications Specification
 
 ## Purpose
-Deliver messages to members.
+Deliver requested notices to a member.
 
 ## Requirements
 
-### Requirement: Deliver email
-The system SHALL deliver an email to a member.
+### Requirement: Deliver notice
+The system SHALL send a notice to its recipient.
 
-#### Scenario: Email delivered
-- **WHEN** a message is queued
-- **THEN** the system sends the email
+#### Scenario: Notice requested
+- **WHEN** a sign-in or security notice is requested for a member
+- **THEN** the system sends the requested notice to that member

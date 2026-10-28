@@ -1,0 +1,174 @@
+{
+  "generator": "opsx-chart",
+  "version": 1,
+  "renderVersion": 2,
+  "snapshot": {
+    "version": 1,
+    "root": ".",
+    "scope": "current",
+    "changeDir": null,
+    "outputDir": "openspec/graph",
+    "inventory": [
+      "openspec/specs/readable-diagrams/spec.md",
+      "openspec/specs/workflow-extension/spec.md"
+    ],
+    "deltaFiles": [],
+    "sources": [
+      {
+        "path": "openspec/specs/readable-diagrams/spec.md",
+        "sha256": "006e657a4da67c6f9d43d9548a610b00d573ee647e6b7c4df2051e44bd580619"
+      },
+      {
+        "path": "openspec/specs/workflow-extension/spec.md",
+        "sha256": "592d4114d187fbc889309613f5a02c97ab5fb9858e941179834c24a7004675fc"
+      }
+    ],
+    "knownCapabilities": [
+      "readable-diagrams",
+      "workflow-extension"
+    ],
+    "specs": [
+      {
+        "capability": "readable-diagrams",
+        "basePath": "openspec/specs/readable-diagrams/spec.md",
+        "deltaPath": null,
+        "retired": false,
+        "requirements": [
+          {
+            "name": "Represent every selected scenario",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Multiple cases in a requirement",
+                "text": "#### Scenario: Multiple cases in a requirement\n- **WHEN** a requirement contains several scenarios\n- **THEN** logically related scenarios share condition or decision nodes with labeled branches\n- **AND** each scenario retains its preconditions, full result and traced graph path\n- **AND** unrelated or ambiguously overlapping cases remain separate without an invented execution order or priority\n"
+              },
+              {
+                "name": "Positive and negative cases",
+                "text": "#### Scenario: Positive and negative cases\n- **WHEN** two scenarios describe positive and negative cases of the same logical check\n- **THEN** the graph represents that check once with its corresponding branches\n- **AND** any additional precondition is preserved as a guard on the appropriate branch\n"
+              },
+              {
+                "name": "Shared graph introduces extra routes",
+                "text": "#### Scenario: Shared graph introduces extra routes\n- **WHEN** joining and splitting shared nodes creates a root-to-result route absent from the declared source-scenario paths\n- **THEN** rendering reports the unsupported route before writing diagrams\n"
+              },
+              {
+                "name": "Changed requirement",
+                "text": "#### Scenario: Changed requirement\n- **WHEN** a selected delta modifies a current requirement\n- **THEN** the proposed view includes its complete effective scenario set\n- **AND** current diagrams remain unchanged until canonical specs actually change\n"
+              },
+              {
+                "name": "Incomplete coverage",
+                "text": "#### Scenario: Incomplete coverage\n- **WHEN** a rendering model omits a selected scenario or invents another\n- **THEN** the renderer reports the coverage error before writing diagrams\n"
+              }
+            ],
+            "text": "### Requirement: Represent every selected scenario\nThe suite SHALL conceptualize the effective scenarios of selected specs as Mermaid graphs, sharing logically related conditions, decisions and equivalent results while preserving a trace to every source scenario.\n\n#### Scenario: Multiple cases in a requirement\n- **WHEN** a requirement contains several scenarios\n- **THEN** logically related scenarios share condition or decision nodes with labeled branches\n- **AND** each scenario retains its preconditions, full result and traced graph path\n- **AND** unrelated or ambiguously overlapping cases remain separate without an invented execution order or priority\n\n#### Scenario: Positive and negative cases\n- **WHEN** two scenarios describe positive and negative cases of the same logical check\n- **THEN** the graph represents that check once with its corresponding branches\n- **AND** any additional precondition is preserved as a guard on the appropriate branch\n\n#### Scenario: Shared graph introduces extra routes\n- **WHEN** joining and splitting shared nodes creates a root-to-result route absent from the declared source-scenario paths\n- **THEN** rendering reports the unsupported route before writing diagrams\n\n#### Scenario: Changed requirement\n- **WHEN** a selected delta modifies a current requirement\n- **THEN** the proposed view includes its complete effective scenario set\n- **AND** current diagrams remain unchanged until canonical specs actually change\n\n#### Scenario: Incomplete coverage\n- **WHEN** a rendering model omits a selected scenario or invents another\n- **THEN** the renderer reports the coverage error before writing diagrams\n"
+          },
+          {
+            "name": "Show evidenced capability relationships",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Inferred association",
+                "text": "#### Scenario: Inferred association\n- **WHEN** an agent interprets an association without an explicit dependency contract\n- **THEN** it may show a dotted related-to connection with its source evidence\n- **AND** it does not show an inferred typed dependency\n"
+              }
+            ],
+            "text": "### Requirement: Show evidenced capability relationships\nThe map SHALL show relationships with source evidence and distinguish inferred associations from explicitly documented dependencies.\n\n#### Scenario: Inferred association\n- **WHEN** an agent interprets an association without an explicit dependency contract\n- **THEN** it may show a dotted related-to connection with its source evidence\n- **AND** it does not show an inferred typed dependency\n"
+          },
+          {
+            "name": "Preserve source and output ownership",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Source changed during generation",
+                "text": "#### Scenario: Source changed during generation\n- **WHEN** specs change after the generation snapshot\n- **THEN** rendering stops and requests a fresh snapshot\n"
+              },
+              {
+                "name": "Hand-edited drawing",
+                "text": "#### Scenario: Hand-edited drawing\n- **WHEN** a generated diagram was manually modified\n- **THEN** regeneration preserves it and reports the conflict\n"
+              },
+              {
+                "name": "Archived proposal",
+                "text": "#### Scenario: Archived proposal\n- **WHEN** OpenSpec moves a change with generated views to its archive\n- **THEN** the suite rebases the source links and retains a historical preview\n- **AND** historical checks compare the archived delta and outputs without requiring today's base specs to match\n"
+              }
+            ],
+            "text": "### Requirement: Preserve source and output ownership\nRendering SHALL leave specs unchanged, replace only its own unedited outputs and detect stale views from source content or inventory changes.\n\n#### Scenario: Source changed during generation\n- **WHEN** specs change after the generation snapshot\n- **THEN** rendering stops and requests a fresh snapshot\n\n#### Scenario: Hand-edited drawing\n- **WHEN** a generated diagram was manually modified\n- **THEN** regeneration preserves it and reports the conflict\n\n#### Scenario: Archived proposal\n- **WHEN** OpenSpec moves a change with generated views to its archive\n- **THEN** the suite rebases the source links and retains a historical preview\n- **AND** historical checks compare the archived delta and outputs without requiring today's base specs to match\n"
+          }
+        ],
+        "removedRequirements": [],
+        "renames": []
+      },
+      {
+        "capability": "workflow-extension",
+        "basePath": "openspec/specs/workflow-extension/spec.md",
+        "deltaPath": null,
+        "retired": false,
+        "requirements": [
+          {
+            "name": "Compose the original operation",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Planning writes specifications",
+                "text": "#### Scenario: Planning writes specifications\n- **WHEN** the original planning operation writes spec artifacts\n- **THEN** the wrapper generates their proposed views through readable-diagrams\n- **AND** it stops before implementation\n"
+              },
+              {
+                "name": "Original skill is unavailable",
+                "text": "#### Scenario: Original skill is unavailable\n- **WHEN** a requested wrapper cannot find its original skill\n- **THEN** it reports the missing dependency without reconstructing the workflow\n"
+              },
+              {
+                "name": "Read-only operation",
+                "text": "#### Scenario: Read-only operation\n- **WHEN** the user explores or verifies without requesting persistent capture\n- **THEN** the wrapper reads or checks views without writing diagrams\n"
+              }
+            ],
+            "text": "### Requirement: Compose the original operation\nThe suite SHALL provide a distinct skill entry point for each supported installed OpenSpec operation and follow the actual original skill with the same change, schema, selected store and stopping conditions.\n\n#### Scenario: Planning writes specifications\n- **WHEN** the original planning operation writes spec artifacts\n- **THEN** the wrapper generates their proposed views through readable-diagrams\n- **AND** it stops before implementation\n\n#### Scenario: Original skill is unavailable\n- **WHEN** a requested wrapper cannot find its original skill\n- **THEN** it reports the missing dependency without reconstructing the workflow\n\n#### Scenario: Read-only operation\n- **WHEN** the user explores or verifies without requesting persistent capture\n- **THEN** the wrapper reads or checks views without writing diagrams\n"
+          },
+          {
+            "name": "Install alongside existing skills",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Core profile",
+                "text": "#### Scenario: Core profile\n- **WHEN** six core OpenSpec operations are installed\n- **THEN** Chart installs their six wrappers and one shared diagram skill\n"
+              },
+              {
+                "name": "Modified installation",
+                "text": "#### Scenario: Modified installation\n- **WHEN** a Chart skill differs from its managed installation receipt\n- **THEN** an update reports the conflict and preserves the edited file\n"
+              }
+            ],
+            "text": "### Requirement: Install alongside existing skills\nThe installer SHALL add self-contained Chart skills only for installed originals and preserve original skills, project configuration and local skill edits.\n\n#### Scenario: Core profile\n- **WHEN** six core OpenSpec operations are installed\n- **THEN** Chart installs their six wrappers and one shared diagram skill\n\n#### Scenario: Modified installation\n- **WHEN** a Chart skill differs from its managed installation receipt\n- **THEN** an update reports the conflict and preserves the edited file\n"
+          },
+          {
+            "name": "Respect current and historical scope",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Archive without synchronization",
+                "text": "#### Scenario: Archive without synchronization\n- **WHEN** the original operation archives a change without syncing its specs\n- **THEN** the proposed view remains historical in the archive\n- **AND** current views describe only the canonical specs on disk\n"
+              },
+              {
+                "name": "Diagram generation fails after native success",
+                "text": "#### Scenario: Diagram generation fails after native success\n- **WHEN** the original operation succeeds but its diagram refresh fails\n- **THEN** the wrapper reports both outcomes and the documentation scope to repair\n- **AND** it does not repeat the completed native operation\n"
+              }
+            ],
+            "text": "### Requirement: Respect current and historical scope\nThe suite SHALL keep proposed, current and archived views distinct and report native-operation and diagram outcomes separately.\n\n#### Scenario: Archive without synchronization\n- **WHEN** the original operation archives a change without syncing its specs\n- **THEN** the proposed view remains historical in the archive\n- **AND** current views describe only the canonical specs on disk\n\n#### Scenario: Diagram generation fails after native success\n- **WHEN** the original operation succeeds but its diagram refresh fails\n- **THEN** the wrapper reports both outcomes and the documentation scope to repair\n- **AND** it does not repeat the completed native operation\n"
+          }
+        ],
+        "removedRequirements": [],
+        "renames": []
+      }
+    ],
+    "id": "b07ea23b74a987a083d72c20e1ff7c2d528b32167a94caba679b23434224e38a"
+  },
+  "outputs": [
+    {
+      "path": "flows/readable-diagrams.md",
+      "sha256": "b13cf2fb1855bae524524f1771f77f0e1b3a8d0b43be1b041b3c999f9614f12e"
+    },
+    {
+      "path": "flows/workflow-extension.md",
+      "sha256": "54157714528ff8bf7dd13e463e10b2b122144bcae0ad9a42fc43045ce4a399b9"
+    },
+    {
+      "path": "map.md",
+      "sha256": "c9420f20ad3ca055c021b3aaf73eae3d2ed9e627ac03cbd26b4ecbadaa6ec5c7"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Apply"
+  short_description: "OpenSpec apply with readable Mermaid views"

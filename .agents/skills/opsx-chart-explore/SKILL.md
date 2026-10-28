@@ -1,13 +1,12 @@
 ---
 name: opsx-chart-explore
-description: Explore an OpenSpec change through OPSX Chart, reading specifications, capability links, and behavior flows together before planning or editing.
+description: Explore an OpenSpec change using its specifications and read-only Mermaid views. Use when the user requests the OPSX Chart explore workflow.
 ---
 
-# Explore a change in OPSX Chart
+# OPSX Chart explore
 
-Use the repository's `openspec-explore` skill for OpenSpec discovery and its read-only boundary. Add the visual perspective in the same exploration; do not start a second plan or change for the graph.
+Read [the shared integration contract](../opsx-chart-diagrams/references/integration.md). Locate the sibling `openspec-explore/SKILL.md`, read it in full and execute that original workflow inline with the user's same arguments, change, schema and selected store. If absent, stop and explain that the matching OpenSpec operation must be installed first. Do not reconstruct or copy the original workflow.
 
-1. Resolve the OpenSpec root and any selected store with `openspec list --json`. If a store was selected, preserve its `--store <id>` on supported OpenSpec commands. Use the resolved local project path for Chart commands. If Chart cannot open that root, report the limitation instead of guessing a different root.
-2. Run `opsx-chart snapshot --root <project>` and inspect relevant capabilities with `opsx-chart inspect --root <project> --capability <id> [--flow <id>] [--change <change>]`. Compare current and proposed scenario text with the linked graph cases and capability relations.
-3. Describe the affected OpenSpec artifacts, graph paths, node WHEN/THEN descriptors, missing links, and decisions still open. Treat the graph as an editable behavior draft and reviewed Markdown scenarios as the behavior contract. Do not infer unspecified outcomes from a drawing.
-4. When the user asks to capture the result, continue with `opsx-chart-propose` for a new change or `opsx-chart-update` for an existing one. Exploration itself stays read-only.
+Read existing diagrams or draw inline only. Preserve the original exploration and capture boundaries; do not persist views merely because this wrapper was invoked.
+
+When this operation writes views, follow [the shared diagram contract](../opsx-chart-diagrams/references/diagrams.md), using the helper bundled in `../opsx-chart-diagrams/scripts/chart.mjs`. Summarize the original operation and diagram results together, keeping their outcomes distinct if only one succeeds. Respect the original phase boundary; do not start another operation.

@@ -1,0 +1,94 @@
+{
+  "generator": "opsx-chart",
+  "version": 1,
+  "renderVersion": 2,
+  "snapshot": {
+    "version": 1,
+    "root": ".",
+    "scope": "current",
+    "changeDir": null,
+    "outputDir": "openspec/graph",
+    "inventory": [
+      "openspec/specs/authentication/spec.md",
+      "openspec/specs/notifications/spec.md"
+    ],
+    "deltaFiles": [],
+    "sources": [
+      {
+        "path": "openspec/specs/authentication/spec.md",
+        "sha256": "98749ac697ecd842bff32cebbe6a1954fd8e6c707345378bda2257bfeea2cfd6"
+      },
+      {
+        "path": "openspec/specs/notifications/spec.md",
+        "sha256": "f108dfcc6e8115b915f1361017863e4c287ff6ee98d2c3be64c340058a13fe0b"
+      }
+    ],
+    "knownCapabilities": [
+      "authentication",
+      "notifications"
+    ],
+    "specs": [
+      {
+        "capability": "authentication",
+        "basePath": "openspec/specs/authentication/spec.md",
+        "deltaPath": null,
+        "retired": false,
+        "requirements": [
+          {
+            "name": "Sign in",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Valid credentials",
+                "text": "#### Scenario: Valid credentials\n- **WHEN** an active member provides valid credentials\n- **THEN** the system starts a session\n- **AND** it requests a sign-in notice from notifications\n"
+              },
+              {
+                "name": "Invalid credentials",
+                "text": "#### Scenario: Invalid credentials\n- **WHEN** a member provides invalid credentials\n- **THEN** the system denies access\n"
+              }
+            ],
+            "text": "### Requirement: Sign in\nThe system SHALL authenticate a member with valid credentials.\nThe system SHALL request sign-in notices from [notifications](../notifications/spec.md).\n\n#### Scenario: Valid credentials\n- **WHEN** an active member provides valid credentials\n- **THEN** the system starts a session\n- **AND** it requests a sign-in notice from notifications\n\n#### Scenario: Invalid credentials\n- **WHEN** a member provides invalid credentials\n- **THEN** the system denies access\n"
+          }
+        ],
+        "removedRequirements": [],
+        "renames": []
+      },
+      {
+        "capability": "notifications",
+        "basePath": "openspec/specs/notifications/spec.md",
+        "deltaPath": null,
+        "retired": false,
+        "requirements": [
+          {
+            "name": "Deliver notice",
+            "operation": "CURRENT",
+            "scenarios": [
+              {
+                "name": "Notice requested",
+                "text": "#### Scenario: Notice requested\n- **WHEN** a sign-in or security notice is requested for a member\n- **THEN** the system sends the requested notice to that member\n"
+              }
+            ],
+            "text": "### Requirement: Deliver notice\nThe system SHALL send a notice to its recipient.\n\n#### Scenario: Notice requested\n- **WHEN** a sign-in or security notice is requested for a member\n- **THEN** the system sends the requested notice to that member\n"
+          }
+        ],
+        "removedRequirements": [],
+        "renames": []
+      }
+    ],
+    "id": "97db666206a4b874a9920ae776bf8d2c1010d09663c8d48fa2bef5b9a48320af"
+  },
+  "outputs": [
+    {
+      "path": "flows/authentication.md",
+      "sha256": "6f3f942190324612c027b1cc672c5153df030cd1b66f8245646eec0880c5dfad"
+    },
+    {
+      "path": "flows/notifications.md",
+      "sha256": "6b9daf08838d62d9fc1ddba5acfbe917678a8de81c82003937606464208d2793"
+    },
+    {
+      "path": "map.md",
+      "sha256": "3adcbcc65d77f6096d7a7d26772c587521a9726ac6fd01c5822ee2334614eb68"
+    }
+  ]
+}

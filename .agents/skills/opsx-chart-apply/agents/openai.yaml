@@ -1,3 +1,3 @@
 interface:
   display_name: "OPSX Chart Apply"
-  short_description: "Implement specs and graph tasks together"
+  short_description: "OpenSpec apply with readable Mermaid views"

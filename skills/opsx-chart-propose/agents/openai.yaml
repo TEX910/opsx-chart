@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Propose"
+  short_description: "OpenSpec propose with readable Mermaid views"

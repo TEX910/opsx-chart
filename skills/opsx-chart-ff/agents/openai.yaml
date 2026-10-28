@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Ff"
+  short_description: "OpenSpec ff with readable Mermaid views"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Continue"
+  short_description: "OpenSpec continue with readable Mermaid views"

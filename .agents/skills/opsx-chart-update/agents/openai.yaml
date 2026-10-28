@@ -1,3 +1,3 @@
 interface:
   display_name: "OPSX Chart Update"
-  short_description: "Revise one paired OpenSpec change plan"
+  short_description: "OpenSpec update with readable Mermaid views"

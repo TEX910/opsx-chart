@@ -1,13 +1,12 @@
 ---
 name: opsx-chart-propose
-description: Plan a new or UI-created OpenSpec change from OPSX Chart, completing its proposal, spec delta, design, and task list without duplicating the change.
+description: Plan an OpenSpec change and generate Mermaid views after its spec artifacts are written. Use when the user requests the OPSX Chart propose workflow.
 ---
 
-# Propose a paired change
+# OPSX Chart propose
 
-For a new change, use the repository's `openspec-propose` skill, including its root check, schema-driven artifact order, and planning-only boundary. When the UI or user already created the named change, reuse it instead of running `openspec new change`: read `openspec status --change <name> --json` and `openspec instructions <artifact-id> --change <name> --json`, then complete only missing artifacts in the transitive dependency set of `applyRequires`. Respect existing content, schema skips, conditional artifacts, and the planning-only boundary. OPSX Chart adds visual context to these same artifacts; it does not create a parallel proposal or a second change ID.
+Read [the shared integration contract](../opsx-chart-diagrams/references/integration.md). Locate the sibling `openspec-propose/SKILL.md`, read it in full and execute that original workflow inline with the user's same arguments, change, schema and selected store. If absent, stop and explain that the matching OpenSpec operation must be installed first. Do not reconstruct or copy the original workflow.
 
-1. Inspect the relevant current specs and graphs with `opsx-chart snapshot --root <project>` and `opsx-chart inspect --root <project> --capability <id> [--flow <id>]`. Select an active OpenSpec change before any Chart edit, including visual layout and relationship edits. Use `openspec new change <name>` through the OpenSpec workflow only when starting new work, not when continuing a change created in Chart.
-2. In the change's proposal, specs, design, and tasks, include graph effects only where they help specify the requested behavior: affected capabilities and relations, cases and scenario references in each capability's single flow, Decision WHEN and Outcome THEN descriptors, Action steps, topology changes, validation, and promotion. A change drafts an existing capability flow or starts its first flow; it does not create an additional flow for that capability. Put each behavior and its graph work under the same change and task list. For a relationship-only change with no spec-level behavior change, use OpenSpec's `skip_specs: true` marker and keep the graph work in the same design and tasks; do not invent an empty scenario delta.
-3. Let OpenSpec's `status --json` and `instructions <artifact> --json` determine artifact paths and requirements. Read completed dependencies from disk before drafting missing artifacts. Preserve the selected store on supported OpenSpec commands. Keep Markdown as the normative behavior contract; describe graph paths without inventing outcomes. If `opsx-chart-graph-to-spec` has already reconciled cases, use that delta as input to design and tasks instead of redoing it.
-4. Validate the proposed OpenSpec change. Report one change ID and the combined task list. Do not implement or save graph drafts during this planning phase; `opsx-chart-apply` handles those tasks after planning.
+After the original finishes writing the selected spec artifacts, generate change previews. Keep all output within the planning phase. Do not implement or update current views.
+
+When this operation writes views, follow [the shared diagram contract](../opsx-chart-diagrams/references/diagrams.md), using the helper bundled in `../opsx-chart-diagrams/scripts/chart.mjs`. Summarize the original operation and diagram results together, keeping their outcomes distinct if only one succeeds. Respect the original phase boundary; do not start another operation.

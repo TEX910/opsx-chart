@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Archive"
+  short_description: "OpenSpec archive with readable Mermaid views"
