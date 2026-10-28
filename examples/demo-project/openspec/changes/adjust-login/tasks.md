@@ -1,3 +1,5 @@
-## 1. Implementation
+## 1. Implement behavior
+- [ ] 1.1 Deny locked-account sign-in and request the security notice; verify the active, invalid and locked-account outcomes with authentication tests.
 
-- [ ] 1.1 Implement the locked account outcome.
+## 2. Review documentation
+- [ ] 2.1 Compare each proposed Mermaid case against its OpenSpec scenario and run the diagram freshness check.

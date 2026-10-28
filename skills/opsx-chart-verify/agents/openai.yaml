@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Verify"
+  short_description: "OpenSpec verify with readable Mermaid views"

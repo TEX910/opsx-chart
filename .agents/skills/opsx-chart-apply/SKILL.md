@@ -1,14 +1,12 @@
 ---
 name: opsx-chart-apply
-description: Implement an OPSX Chart OpenSpec change, completing code, scenario deltas, and linked graph drafts from one task list.
+description: Implement an OpenSpec change using scenario diagrams as reading aids. Use when the user requests the OPSX Chart apply workflow.
 ---
 
-# Apply a paired change
+# OPSX Chart apply
 
-Use the repository's `openspec-apply-change` skill for change selection, `instructions apply --json`, task tracking, and completion rules. The change's OpenSpec task list is the only implementation checklist. Use the same change ID for behavior graph drafts; do not create a second visual backlog.
+Read [the shared integration contract](../opsx-chart-diagrams/references/integration.md). Locate the sibling `openspec-apply-change/SKILL.md`, read it in full and execute that original workflow inline with the user's same arguments, change, schema and selected store. If absent, stop and explain that the matching OpenSpec operation must be installed first. Do not reconstruct or copy the original workflow.
 
-1. Read every `contextFiles` path returned by OpenSpec apply instructions. Inspect the affected scenario and graph with `opsx-chart snapshot --root <project>` and `opsx-chart inspect --root <project> --capability <id> [--flow <id>] --change <name>`.
-2. Implement each task's code and spec work. For graph-relevant tasks, use `opsx-chart-spec-to-graph` or `opsx-chart-graph-to-spec` as needed. Keep one flow per capability and reuse its ID across changes; do not create a second flow to represent another change. Decision nodes hold `whens` keyed by outgoing edge ID and can lead through Actions or later Decisions to an Outcome carrying `then`; case paths connect them to a target OpenSpec scenario. The `opsx-chart-graph-to-spec` skill owns graph case links and scenario Markdown; the app displays both read only. Save a behavioral flow with `opsx-chart save-flow --root <project> --file <draft.yaml> --change <name>`; it belongs to that change's `graph/` directory. Stable IDs and scenario references must survive unaffected paths. A selected change is required for Chart edits, including layout-only edits; layout data may still save to the current graph without a spec delta.
-3. For capability relationship changes, create or update `openspec/changes/<name>/graph/relations.yaml` using the version 1 relation schema. Copy the complete intended edge set and preserve unaffected IDs. Set `baseDigest` to the SHA-256 of the exact current `openspec/graph/relations.yaml` file, or `null` if that file does not exist. The existing UI relation save writes canonical graph state, so use the change draft for behavior-affecting relation edits. Preflight validates that draft after spec sync.
-4. Validate with `openspec validate <name> --strict --json` and `opsx-chart validate --root <project> --change <name>`. Resolve errors and review warnings that affect linked behavior. Mark a task complete only when all its code, Markdown, and graph work is done, using the exact task location returned by OpenSpec apply instructions. Re-run those instructions after each completed task.
-5. Stop at implementation completion. `opsx-chart-sync` promotes the paired artifacts, and `opsx-chart-archive` finalizes the change.
+Consult available diagrams while implementing. Refresh change previews if spec text changed, or views are missing/stale. Keep the original task list and completion rules; diagrams do not authorize additional implementation.
+
+When this operation writes views, follow [the shared diagram contract](../opsx-chart-diagrams/references/diagrams.md), using the helper bundled in `../opsx-chart-diagrams/scripts/chart.mjs`. Summarize the original operation and diagram results together, keeping their outcomes distinct if only one succeeds. Respect the original phase boundary; do not start another operation.

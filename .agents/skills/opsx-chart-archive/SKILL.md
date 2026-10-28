@@ -1,12 +1,12 @@
 ---
 name: opsx-chart-archive
-description: Archive a completed OPSX Chart OpenSpec change after validating its canonical specs and reconciling every graph draft.
+description: Archive an OpenSpec change, retain its diagram snapshot and refresh current views. Use when the user requests the OPSX Chart archive workflow.
 ---
 
-# Archive a paired change
+# OPSX Chart archive
 
-Use the repository's `openspec-archive-change` skill for OpenSpec's completion checks and archive operation. Add a graph gate first so an archive never hides an unreconciled draft. Keep the same change ID and any selected store.
+Read [the shared integration contract](../opsx-chart-diagrams/references/integration.md). Locate the sibling `openspec-archive-change/SKILL.md`, read it in full and execute that original workflow inline with the user's same arguments, change, schema and selected store. If absent, stop and explain that the matching OpenSpec operation must be installed first. Do not reconstruct or copy the original workflow.
 
-1. Run `opsx-chart pending --root <project>` and `opsx-chart validate --root <project> --change <name>`. If this change still has a graph draft, run `opsx-chart-sync` or recover it with `opsx-chart-reconcile`; do not claim the paired change is archived cleanly while a draft remains.
-2. Check OpenSpec artifacts, tasks, and validation through `openspec-archive-change`. Confirm canonical spec sync status before archiving; because `openspec archive` can also update specs, review its proposed spec effects even if `opsx-chart-sync` already ran. An explicit archive request authorizes ordinary archiving when these checks pass; seek a decision only for an unresolved warning or an unexpected spec update.
-3. Archive the selected change using the OpenSpec workflow, then rerun Chart `pending` and check that no draft from this change remains. Report the archive path and any remaining diagnostics. Do not delete a stranded draft to make the check pass.
+Before archival, refresh the selected change preview where spec artifacts exist. Follow the original archive, including any inline sync, exactly once. After the move, freeze the existing preview at its actual archive path and generate current views from disk. If archive did not sync, do not present its proposed behavior as current.
+
+When this operation writes views, follow [the shared diagram contract](../opsx-chart-diagrams/references/diagrams.md), using the helper bundled in `../opsx-chart-diagrams/scripts/chart.mjs`. Summarize the original operation and diagram results together, keeping their outcomes distinct if only one succeeds. Respect the original phase boundary; do not start another operation.

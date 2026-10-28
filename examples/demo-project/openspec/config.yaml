@@ -1,1 +1,5 @@
 schema: spec-driven
+
+context: |
+  Example project for read-only OPSX Chart views.
+  OpenSpec owns the specifications; Mermaid views are generated documentation.

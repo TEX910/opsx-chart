@@ -1,8 +1,8 @@
 schema: spec-driven
 
 context: |
-  This repository builds opsx-chart, a local visual companion for OpenSpec.
-  OpenSpec Markdown specifications remain the normative behavioral contract.
-  Versioned graph files represent capability relationships and behavioral flow topology.
-  The first release is a local web application for one OpenSpec project at a time.
-  Behavioral edits are planned through OpenSpec changes; layout-only edits do not alter requirements.
+  This repository builds OPSX Chart, an extension suite of skills for OpenSpec.
+  Thin workflow wrappers read the installed original OpenSpec skills inline.
+  Specifications own behavior. Mermaid views only improve readability of spec
+  relationships and WHEN/THEN cases; no graph editor or reverse synchronization exists.
+  Runtime helpers use Node.js built-ins and have no npm dependencies or build step.

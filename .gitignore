@@ -3,3 +3,5 @@ dist/
 web-dist/
 .DS_Store
 *.tsbuildinfo
+*.tgz
+.opsx-chart-stage-*/

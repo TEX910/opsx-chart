@@ -1,0 +1,37 @@
+{
+  "generator": "opsx-chart",
+  "version": 1,
+  "skills": {
+    "opsx-chart-diagrams": {
+      "agents/openai.yaml": "8e17132860b37c7847977f6b9ad7d98ee2a74c7e347a25a5d6c33303bf67291e",
+      "references/diagrams.md": "8b903197f899dcfa9c6c3a463c30f00d2034131fd76255dad9470faf03c4acfb",
+      "references/integration.md": "f5e22d1f6a305a88b5c48b24ffb44b12dc478b34d5ae9f8405c3f0bbde60a195",
+      "scripts/chart.mjs": "e228504f208df5b1b9437959cb4c70ddfa7abe725b449482f439203b0af8f39e",
+      "SKILL.md": "d03d02531823286ee91d29c4c8f6cc3b08bd5594730d1ff636ff3d9de2923849"
+    },
+    "opsx-chart-explore": {
+      "agents/openai.yaml": "9133244d765296a6b82adb78ea9c04e2035315b67a57dda2e155f63df32175a2",
+      "SKILL.md": "88694d20f7dde556404731be5e0311f5bd33f4f2712f3955df7f919d935ab343"
+    },
+    "opsx-chart-propose": {
+      "agents/openai.yaml": "fc645c2504dd8da289ac643bb6dcdfc9941b4c1e24fea6ca0714149903cd87f0",
+      "SKILL.md": "05cb6821ec1adb0716ff4ac155512071386350ab26a01fe4ac28c635a79de886"
+    },
+    "opsx-chart-update": {
+      "agents/openai.yaml": "d084331d7b8b6c70144a99f073fd5b185d94a3ebfe41c6531b99d21f6ae7f66f",
+      "SKILL.md": "e3b40233bbf15efb80966a6ead1c6e5aff4c6c26ee068db6e490718fff8ec4ce"
+    },
+    "opsx-chart-apply": {
+      "agents/openai.yaml": "00db0de830232b528effcefecc970879c3210dff4f6ff2781d8dbd21fcafe6f1",
+      "SKILL.md": "6ebff5a9f710f22c15ddd51e5bd638c342f151e1db588dfe351441e9dc5ad01a"
+    },
+    "opsx-chart-sync": {
+      "agents/openai.yaml": "d27f2389455f167259aa991a0e4efce6433952d9227d1c8cec067fc279fe7196",
+      "SKILL.md": "8070f0f7af67bbbb52a7a5ad8fb871efaa07ce61185de989fb72a4c217c0833e"
+    },
+    "opsx-chart-archive": {
+      "agents/openai.yaml": "e4215e339b005ab6e6e471e0e3d231fef31ce4f9d17a8400cd2872e2e249180c",
+      "SKILL.md": "3215a4c71df03602b013e60749b364d1a563f67664300af0f9e3cc61caaedcd7"
+    }
+  }
+}

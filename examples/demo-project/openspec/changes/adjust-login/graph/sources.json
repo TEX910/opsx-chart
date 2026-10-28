@@ -1,0 +1,79 @@
+{
+  "generator": "opsx-chart",
+  "version": 1,
+  "renderVersion": 2,
+  "snapshot": {
+    "version": 1,
+    "root": ".",
+    "scope": "change",
+    "changeDir": "openspec/changes/adjust-login",
+    "outputDir": "openspec/changes/adjust-login/graph",
+    "inventory": [
+      "openspec/specs/authentication/spec.md",
+      "openspec/specs/notifications/spec.md"
+    ],
+    "deltaFiles": [
+      "openspec/changes/adjust-login/specs/authentication/spec.md"
+    ],
+    "sources": [
+      {
+        "path": "openspec/specs/authentication/spec.md",
+        "sha256": "98749ac697ecd842bff32cebbe6a1954fd8e6c707345378bda2257bfeea2cfd6"
+      },
+      {
+        "path": "openspec/specs/notifications/spec.md",
+        "sha256": "f108dfcc6e8115b915f1361017863e4c287ff6ee98d2c3be64c340058a13fe0b"
+      },
+      {
+        "path": "openspec/changes/adjust-login/specs/authentication/spec.md",
+        "sha256": "07417a23d936981b586b505f23bce27c71fa3b1918d8f9e23d30cd2fd9695d83"
+      }
+    ],
+    "knownCapabilities": [
+      "authentication",
+      "notifications"
+    ],
+    "specs": [
+      {
+        "capability": "authentication",
+        "basePath": "openspec/specs/authentication/spec.md",
+        "deltaPath": "openspec/changes/adjust-login/specs/authentication/spec.md",
+        "retired": false,
+        "requirements": [
+          {
+            "name": "Sign in",
+            "operation": "MODIFIED",
+            "scenarios": [
+              {
+                "name": "Valid credentials",
+                "text": "#### Scenario: Valid credentials\n- **WHEN** an active member provides valid credentials\n- **THEN** the system starts a session\n- **AND** it requests a sign-in notice from notifications\n"
+              },
+              {
+                "name": "Invalid credentials",
+                "text": "#### Scenario: Invalid credentials\n- **WHEN** a member provides invalid credentials\n- **THEN** the system denies access\n"
+              },
+              {
+                "name": "Locked account",
+                "text": "#### Scenario: Locked account\n- **WHEN** a member with a locked account submits credentials\n- **THEN** the system denies access and explains the account lock\n- **AND** it requests a security notice from notifications\n"
+              }
+            ],
+            "text": "### Requirement: Sign in\nThe system SHALL authenticate a member with valid credentials when the member's account is not locked.\nThe system SHALL request sign-in notices from [notifications](../notifications/spec.md).\nThe system SHALL request a security notice from notifications after a locked-account sign-in attempt.\n\n#### Scenario: Valid credentials\n- **WHEN** an active member provides valid credentials\n- **THEN** the system starts a session\n- **AND** it requests a sign-in notice from notifications\n\n#### Scenario: Invalid credentials\n- **WHEN** a member provides invalid credentials\n- **THEN** the system denies access\n\n#### Scenario: Locked account\n- **WHEN** a member with a locked account submits credentials\n- **THEN** the system denies access and explains the account lock\n- **AND** it requests a security notice from notifications\n"
+          }
+        ],
+        "removedRequirements": [],
+        "renames": []
+      }
+    ],
+    "id": "eb4476730a64f1e42f23f5265e4c3bc7e6749072f87ca9c27114e458e4ae4910"
+  },
+  "outputs": [
+    {
+      "path": "flows/authentication.md",
+      "sha256": "b1d136bea6d2e18cf58c191fd438ba2881ecdd85e9baab35668e7ec7a5336114"
+    },
+    {
+      "path": "map.md",
+      "sha256": "aa696dc10da343466e8b1fc034bdfc4ff6428f5192da5a5e6229de150ceedc86"
+    }
+  ]
+}

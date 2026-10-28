@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart New"
+  short_description: "OpenSpec new with readable Mermaid views"

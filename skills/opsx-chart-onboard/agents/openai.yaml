@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Onboard"
+  short_description: "OpenSpec onboard with readable Mermaid views"

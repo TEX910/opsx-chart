@@ -1,0 +1,3 @@
+interface:
+  display_name: "OPSX Chart Diagrams"
+  short_description: "Read-only Mermaid views from OpenSpec specifications"
